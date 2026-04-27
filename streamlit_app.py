@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import numpy as np
 # import plotly.graph_objects as go 
-# import plotly.express as px
+import plotly.express as px
 # from datetime import datetime, timedelta
 
 APP_ID = st.secrets["Larksuite"]["APP_ID"]
@@ -176,3 +176,67 @@ detail_cols = final_df.apply(calculate_detailed_profit, axis=1)
 final_df = pd.concat([final_df, detail_cols], axis=1)
     
 st.dataframe(final_df)
+
+st.title("🏙️ Financial Dashboard")
+
+# --- 第一层：选择类型 ---
+selected_type = st.selectbox("Select Type", options=["MH", "ML"])
+
+# 过滤数据
+type_df = final_df[final_df['Type'] == selected_type]
+
+# --- 第二层：展示总体 Profit 和分项 ---
+st.subheader(f"📊 {selected_type} Summary")
+
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    total_profit = type_df['Profit'].sum()
+    st.metric(label=f"{selected_type} Total Profit", value=f"${total_profit:,.2f}")
+    
+    # 如果是 MH，展示分项总和
+    if selected_type == "MH":
+        st.write("**Breakdown:**")
+        st.write(f"- Management Fee: ${type_df['Management_Fee'].sum():,.0f}")
+        st.write(f"- Labor: ${type_df['Labor'].sum():,.0f}")
+        st.write(f"- Commission: -${type_df['Commission'].sum():,.0f}")
+        st.write(f"- Marketing: -${type_df['Marketing'].sum():,.0f}")
+        st.write(f"- Bookkeeping: -${type_df['Bookkeeping'].sum():,.0f}")
+
+
+with col2:
+    if selected_type == "MH":
+        # 准备饼图数据（仅展示收益和支出的构成）
+        mh_summary = type_df[['Management_Fee', 'Labor', 'Commission', 'Marketing', 'Bookkeeping']].sum()
+        # 将支出项转为正数用于绘图
+        plot_data = mh_summary.abs()
+        fig = px.pie(values=plot_data.values, names=plot_data.index, title=f"{selected_type} 成本收益结构(绝对值)")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        # ML 类型的简单展示
+        st.info("Master Lease is composed by Leased Revenue - Total_Fixed")
+
+st.markdown("---")
+
+# --- 第三层：选地块/具体项目 ---
+st.header(f"📍 {selected_type} Detailed")
+
+# 获取当前类型下的所有地块名称
+locations = type_df['Property ID'].unique() # 假设你的列名是 Property_Name
+selected_location = st.selectbox("Please select property", options=locations)
+
+# 过滤具体地点的数据
+location_data = type_df[type_df['Property ID'] == selected_location].iloc[0]
+
+# 展示单地块详情
+c1, c2, c3 = st.columns(3)
+c1.write(f"**Total Profit**")
+c1.subheader(f"${location_data['Profit']:,.2f}")
+
+with st.expander("点击查看该地块详细核算明细"):
+    # 用表格展示该行的所有财务列
+    detail_view = location_data[['Management_Fee', 'Labor', 'Commission', 'Marketing', 'Bookkeeping', 'Profit']]
+    st.table(detail_view)
+
+# (可选) 展示该地块在同类中的表现
+st.bar_chart(type_df.set_index('Property ID')['Profit'])
