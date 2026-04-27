@@ -130,7 +130,7 @@ final_df['Already_Leased_Rev'] = final_df['Already_Leased_Rev'].fillna(0)
 final_df['Leased_Units'] = final_df['Leased_Units'].fillna(0)
 
 def profit(row):
-    p_type = row['Property Yype']
+    p_type = row['Type']
     rev = row['Already_Leased_Rev']
     fixed = row['Total_fixed']
     unit = row['Leased_Units']
