@@ -129,18 +129,50 @@ final_df = property_df.merge(cost_summary, on='Property ID', how='left') \
 final_df['Already_Leased_Rev'] = final_df['Already_Leased_Rev'].fillna(0)
 final_df['Leased_Units'] = final_df['Leased_Units'].fillna(0)
 
-def profit(row):
+def calculate_detailed_profit(row):
+    # 初始化所有明细为 0
+    mgt_fee = 0.0
+    labor = 0.0
+    commission = 0.0
+    marketing = 0.0
+    bookkeeping = 0.0
+    
     p_type = row['Type']
     rev = row['Already_Leased_Rev']
-    fixed = row['Total_Fixed']
     unit = row['Leased_Units']
     total_unit = row['Total Unit']
+    fixed = row['Total_Fixed']
+
     if p_type == "MH":
-        return rev * 0.12 + unit*50 + total_unit * 30
+        # MH 的明细计算逻辑（根据你的需求调整比例）
+        mgt_fee = rev * 0.08
+        labor = rev * 0.04
+        commission = unit * 50
+        marketing = total_unit * 30
+        bookkeeping = 200  # 假设固定值
+        # MH 总利润 = 收益项 - 成本项 (这里假设 mgt_fee 和 labor 是收益)
+        profit = mgt_fee + labor + commission + marketing + bookkeeping
+        
     elif p_type == "ML":
-        return rev * 0.98 - fixed
+        # ML 通常只有毛利逻辑
+        profit = rev * 0.98 - fixed
+        # 如果 ML 不需要明细，其他字段保持 0 即可   
     else:
-        return 0
-final_df['profit'] = final_df.apply(profit,axis=1)
+        profit = 0
+
+    # 返回一个 Series，索引名称就是列名
+    return pd.Series({
+        'Management_Fee': mgt_fee,
+        'Labor': labor,
+        'Commission': commission,
+        'Marketing': marketing,
+        'Bookkeeping': bookkeeping,
+        'Profit': profit
+    })
+
+# --- 应用到 DataFrame ---
+# 将生成的 6 列合并到原有的 final_df 中
+detail_cols = final_df.apply(calculate_detailed_profit, axis=1)
+final_df = pd.concat([final_df, detail_cols], axis=1)
     
 st.dataframe(final_df)
