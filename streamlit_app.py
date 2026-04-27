@@ -126,6 +126,21 @@ leased_info = signed_leases_df.groupby('Property ID').agg(
 # 3. 然后再与 property_df 合并
 final_df = property_df.merge(cost_summary, on='Property ID', how='left') \
                       .merge(leased_info, on='Property ID', how='left')
-
 final_df['Already_Leased_Rev'] = final_df['Already_Leased_Rev'].fillna(0)
+final_df['Leased_Units'] = final_df['Leased_Units'].fillna(0)
+
+def profit(row):
+    p_type = row['property type']
+    rev = row['Already_Leased_Rev']
+    fixed = row['Total_fixed']
+    unit = row['Leased_Units']
+    total_unit = row['Total Unit']
+    if p_type == "MH":
+        return rev * 0.12 + unit*50 + total_unit * 30
+    elif p_type == "ML":
+        return rev * 0.98 - fixed
+    else:
+        return 0
+final_df['profit'] = final_df.apply(profit)
+    
 st.dataframe(final_df)
