@@ -141,6 +141,6 @@ def profit(row):
         return rev * 0.98 - fixed
     else:
         return 0
-final_df['profit'] = final_df.apply(profit)
+final_df['profit'] = final_df.apply(profit,axis=1)
     
 st.dataframe(final_df)
