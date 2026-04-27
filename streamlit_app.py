@@ -132,7 +132,7 @@ final_df['Leased_Units'] = final_df['Leased_Units'].fillna(0)
 def profit(row):
     p_type = row['Type']
     rev = row['Already_Leased_Rev']
-    fixed = row['Total_fixed']
+    fixed = row['Total_Fixed']
     unit = row['Leased_Units']
     total_unit = row['Total Unit']
     if p_type == "MH":
