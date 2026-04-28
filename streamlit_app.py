@@ -216,10 +216,10 @@ with col2:
         # ML 类型的简单展示
         col1, col2 = st.columns([1, 2])
         with col1:
-            total_rev =  type_df['Already_Leased_Rev']
+            total_rev =  type_df['Already_Leased_Rev'].sum()
             st.metric(label=f"{selected_type} Total Revenue", value=f"${total_rev:,.2f}")
         with col2:
-            total_cost =  type_df['Total_Fixed']
+            total_cost =  type_df['Total_Fixed'].sum()
             st.metric(label=f"{selected_type} Total Cost", value=f"${total_cost:,.2f}")
         
 
