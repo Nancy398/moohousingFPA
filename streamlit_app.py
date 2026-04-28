@@ -129,6 +129,8 @@ final_df = property_df.merge(cost_summary, on='Property ID', how='left') \
 final_df['Already_Leased_Rev'] = final_df['Already_Leased_Rev'].fillna(0)
 final_df['Leased_Units'] = final_df['Leased_Units'].fillna(0)
 
+st.dataframe(final_df)
+
 def calculate_detailed_profit(row):
     # 初始化所有明细为 0
     mgt_fee = 0.0
