@@ -214,7 +214,7 @@ with col2:
         st.plotly_chart(fig, use_container_width=True)
     else:
         # ML 类型的简单展示
-        col1, col2 = st.columns([1, 2])
+        col1, col2 = st.columns([2, 2])
         with col1:
             total_rev =  type_df['Already_Leased_Rev'].sum()
             st.metric(label=f"{selected_type} Total Revenue", value=f"${total_rev:,.2f}")
@@ -236,14 +236,33 @@ selected_location = st.selectbox("Please select property", options=locations)
 location_data = type_df[type_df['Property ID'] == selected_location].iloc[0]
 
 # 展示单地块详情
-c1, c2, c3 = st.columns(3)
-c1.write(f"**Total Profit**")
-c1.subheader(f"${location_data['Profit']:,.2f}")
+col_p1, col_p2, col_p3 = st.columns(3)
+with col_p1:
+    st.metric(label="Total Profit", value=f"${location_data['Profit']:,.2f}")
+with col_p2:
+    st.metric(label="Revenue", value=f"${location_data['Already_Leased_Rev']:,.2f}")
+with col_p3:
+    st.metric(label="Occupancy Rate", value=f"{(location_data['Leased_Units']/location_data['Total Unit']*100):.1f}%")
 
-with st.expander("点击查看该地块详细核算明细"):
-    # 用表格展示该行的所有财务列
-    detail_view = location_data[['Management_Fee', 'Labor', 'Commission', 'Marketing', 'Bookkeeping', 'Profit']]
-    st.table(detail_view)
+st.write("---") # 分割线
+
+# 定义第二行：MH 专有的费用明细 (KPI 形式)
+if selected_type == "MH":
+    st.subheader("Cost & Fee Breakdown")
+    # 我们用 5 列来展示 5 个细分科目
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric(label="Management Fee", value=f"${location_data['Management_Fee']:,.2f}")
+    m2.metric(label="Labor Fee", value=f"${location_data['Labor']:,.2f}")
+    m3.metric(label="Commission", value=f"${location_data['Commission']:,.2f}")
+    m4.metric(label="Marketing Fee", value=f"${location_data['Marketing']:,.2f}")
+    m5.metric(label="Bookkeeping Fee", value=f"${location_data['Bookkeeping']:,.2f}")
+
+else:
+    # 如果是 ML，展示 ML 相关的 KPI
+    st.subheader("Master Lease Details")
+    m1, m2 = st.columns(2)
+    m1.metric(label="Fixed Cost", value=f"${location_data['Total_Fixed']:,.0f}", delta_color="inverse")
+    m2.metric(label="Revenue", value=f"${location_data['Already_Leased_Rev']*0.98:,.2f}")
 
 # (可选) 展示该地块在同类中的表现
 st.bar_chart(type_df.set_index('Property ID')['Profit'])
