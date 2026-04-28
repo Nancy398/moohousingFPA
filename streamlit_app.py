@@ -251,11 +251,15 @@ if selected_type == "MH":
     st.subheader("Cost & Fee Breakdown")
     # 我们用 5 列来展示 5 个细分科目
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric(label="Management Fee", value=f"${location_data['Management_Fee']:,.2f}")
-    m2.metric(label="Labor Fee", value=f"${location_data['Labor']:,.2f}")
-    m3.metric(label="Commission", value=f"${location_data['Commission']:,.2f}")
-    m4.metric(label="Marketing Fee", value=f"${location_data['Marketing']:,.2f}")
-    m5.metric(label="Bookkeeping Fee", value=f"${location_data['Bookkeeping']:,.2f}")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Management Fee", f"${location_data['Management_Fee']:,.2f}")
+    c2.metric("Labor Fee", f"${location_data['Labor']:,.2f}")
+    c3.metric("Commission", f"${location_data['Commission']:,.2f}")
+    
+    # 第二行：辅助收入
+    c4, c5 = st.columns(2)
+    c4.metric("Marketing Fee", f"${location_data['Marketing']:,.2f}")
+    c5.metric("Bookkeeping Fee", f"${location_data['Bookkeeping']:,.2f}")
 
 else:
     # 如果是 ML，展示 ML 相关的 KPI
