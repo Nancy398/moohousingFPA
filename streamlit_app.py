@@ -199,9 +199,9 @@ with col1:
         st.write("**Breakdown:**")
         st.write(f"- Management Fee: ${type_df['Management_Fee'].sum():,.0f}")
         st.write(f"- Labor: ${type_df['Labor'].sum():,.0f}")
-        st.write(f"- Commission: -${type_df['Commission'].sum():,.0f}")
-        st.write(f"- Marketing: -${type_df['Marketing'].sum():,.0f}")
-        st.write(f"- Bookkeeping: -${type_df['Bookkeeping'].sum():,.0f}")
+        st.write(f"- Commission: ${type_df['Commission'].sum():,.0f}")
+        st.write(f"- Marketing: ${type_df['Marketing'].sum():,.0f}")
+        st.write(f"- Bookkeeping: ${type_df['Bookkeeping'].sum():,.0f}")
 
 
 with col2:
@@ -210,11 +210,18 @@ with col2:
         mh_summary = type_df[['Management_Fee', 'Labor', 'Commission', 'Marketing', 'Bookkeeping']].sum()
         # 将支出项转为正数用于绘图
         plot_data = mh_summary.abs()
-        fig = px.pie(values=plot_data.values, names=plot_data.index, title=f"{selected_type} 成本收益结构(绝对值)")
+        fig = px.pie(values=plot_data.values, names=plot_data.index, title=f"{selected_type} Profit Structure")
         st.plotly_chart(fig, use_container_width=True)
     else:
         # ML 类型的简单展示
-        st.info("Master Lease is composed by Leased Revenue - Total_Fixed")
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            total_rev =  type_df['Already_Leased_rev"]
+            st.metric(label=f"{selected_type} Total Revenue", value=f"${total_rev:,.2f}")
+        with col2:
+            total_cost =  type_df['Total_Fixed"]
+            st.metric(label=f"{selected_type} Total Cost", value=f"${total_cost:,.2f}")
+        
 
 st.markdown("---")
 
