@@ -114,7 +114,7 @@ for col in cost_cols:
             errors='coerce'
         ).fillna(0)
 cost_df['Total_Fixed'] = cost_df[cost_cols].sum(axis=1)
-cost_summary = cost_df[['Property ID', 'Total_Fixed']]
+cost_summary = cost_df[['Property ID', 'Total_Fixed','Marketing','Bookkeeping']]
 
 signed_leases_df = merged_df[merged_df['Lease Status'] == 'Lease Signed'].copy()
 
