@@ -142,14 +142,14 @@ def calculate_detailed_profit(row):
     unit = row['Leased_Units']
     total_unit = row['Total Unit']
     fixed = row['Total_Fixed']
+    marketing = row['Marketing']
+    bookkeeping= row['Bookkeeping']
 
     if p_type == "MH":
         # MH 的明细计算逻辑（根据你的需求调整比例）
         mgt_fee = rev * 0.08
         labor = rev * 0.04
         commission = unit * 50
-        marketing = total_unit * 30
-        bookkeeping = 200  # 假设固定值
         # MH 总利润 = 收益项 - 成本项 (这里假设 mgt_fee 和 labor 是收益)
         profit = mgt_fee + labor + commission + marketing + bookkeeping
         
