@@ -167,8 +167,6 @@ def calculate_detailed_profit(row):
         'Management_Fee': mgt_fee,
         'Labor': labor,
         'Commission': commission,
-        'Marketing': marketing,
-        'Bookkeeping': bookkeeping,
         'Profit': profit
     })
 
