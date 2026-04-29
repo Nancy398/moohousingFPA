@@ -287,6 +287,7 @@ with tab_apartments:
       scopes=scope)
       gc = gspread.authorize(credentials)
       worksheet = gc.open(name).worksheet(sheet)
+      rows = worksheet.get_all_values() 
       raw_df = pd.DataFrame(rows)
       new_header = raw_df.iloc[1].str.strip().tolist()
         
