@@ -351,6 +351,7 @@ with tab_apartments:
         .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
     )
+    st.dataframe(df_2025)
     df_2025['Received Commission'] = pd.to_numeric(df_2025['Received Commission'], errors='coerce').fillna(0)
     df_2025['Bonus to resident'] = pd.to_numeric(df_2025['Bonus to resident'], errors='coerce').fillna(0)
     df_2025['Commission'] = pd.to_numeric(df_2025['Commission'], errors='coerce').fillna(0)
