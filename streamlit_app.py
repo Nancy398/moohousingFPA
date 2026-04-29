@@ -313,11 +313,12 @@ with tab_apartments:
     
     df_2025 = read_file("Apartment Referral List","2025")
     df_2025['Received Commission'] = (
-    df_2025['Received Commission']
-    .astype(str)
-    .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
-    .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
-)
+        df_2025['Received Commission']
+        .astype(str)
+        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
+        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
+    )
+    df_2025['Received Commission'] = pd.to_numeric(df_2025['Received Commission'], errors='coerce').fillna(0)
     st.dataframe(df_2025)
     mask_unreceived = (df_2025['状态'] == '已入住')& (df_2025['Received'] == 'FALSE')
     df_unreceived = df_2025[mask_unreceived]
