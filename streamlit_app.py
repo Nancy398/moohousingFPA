@@ -360,6 +360,8 @@ with tab_apartments:
     paid_comm_2025 = df_expense[(df_expense['Year'] == '2025')]['Commission'].sum()
     other_expense_2025 = df_expense[(df_expense['Year'] == 2025)]['Expense'].sum()
     bonus_residents_2025 = df_2025.loc[df_2025['Payroll'] == 'TRUE', 'Bonus to resident'].sum()
+    st.write(other_expense_2025)
+    st.write(bonus_residents_2025)
     total_expense = other_expense_2025 + bonus_residents_2025
     checked_in_count = len(df_2025[df_2025['状态'] == '已入住'])
     received_count = checked_in_count-count_unreceived
