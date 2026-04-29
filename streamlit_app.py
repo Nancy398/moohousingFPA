@@ -288,8 +288,24 @@ with tab_apartments:
       gc = gspread.authorize(credentials)
       worksheet = gc.open(name).worksheet(sheet)
       rows = worksheet.get_all_values()
-      df = pd.DataFrame.from_records(rows)
-      df = pd.DataFrame(df.values[1:], columns=df.iloc[0])
+      df = pd.DataFrame(rows)
+      header = df.iloc[0].values.tolist()
+      new_header = []
+      counts = {}
+      for i, col in enumerate(header):
+          new_name = col if col.strip() != "" else f"EmptyCol_{i}"
+          if new_name in counts:
+              counts[new_name] += 1
+              new_name = f"{new_name}_{counts[new_name]}"
+          else:
+              counts[new_name] = 0
+          new_header.append(new_name)
+        # ---------------------------------
+    
+        # 3. 重新指派列名并去掉第一行
+      df.columns = new_header
+      df = df.iloc[1:].reset_index(drop=True)
+        
       return df
     
     df_2025 = read_file("Apartment Referral List","2025")
