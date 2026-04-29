@@ -312,8 +312,15 @@ with tab_apartments:
       return df
     
     df_2025 = read_file("Apartment Referral List","2025")
+    df_expense = read_file("Apartments FA","Expense")
     df_2025['Received Commission'] = (
         df_2025['Received Commission']
+        .astype(str)
+        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
+        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
+    )
+    df_2025['Bonus to resident'] = (
+        df_2025['Bonus to resident']
         .astype(str)
         .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
@@ -324,10 +331,19 @@ with tab_apartments:
     df_unreceived = df_2025[mask_unreceived]
     count_unreceived = len(df_unreceived)
     total_received_commission = df_2025.loc[df_2025['Received'] == 'TRUE', 'Received Commission'].sum()
-    st.write(total_received_commission)
-    st.title("Apartments - 2025")
-    col1, col2 = st.columns(2)
-    with col1:
+    payroll_paid_val = df_2025[(df_2025['Payroll'] == 'TRUE') & (df_2025['Received'] == 'TRUE')]['Received Commission'].sum()
+    payroll_pending_received_val = df_2025[(df_2025['Payroll'] == 'FALSE') & (df_2025['Received'] == 'TRUE')]['Received Commission'].sum()
+    paid_comm_2025 = df_expense[(df_expense['Year'] == '2025')]['Commission'].sum()
+    other_expense_2025 = df_expense[(df_expense['year'] == 2025)]['Expense'].sum()
+    bonus_residents_2025 = df_2025.loc[df_2025['Payroll'] == 'TRUE', 'Bonus to resident'].sum()
+    checked_in_count = len(df_2025[df_2025['状态'] == '已入住'])
+    received_count = checked_in_count-count_unreceived
+
+# --- 2. 从 df_expense 计算指标 ---
+    col1, col2,col3,col4 = st.columns(4)
+    col1.metric("已入住总数", f"{int(checked_in_count)}")
+    col2.metric("已收commission总数", f"{int(received_count)}")
+    with col3:
     # 使用 popover 包装指标，点击按钮即可弹出详情
         col1.metric("Pending Received记录数 (已入住)", f"{count_unreceived}")
         with st.popover(f"Click to see the details by Apartments"):
@@ -339,5 +355,13 @@ with tab_apartments:
             else:
                 st.write("目前没有待收记录。")
     col2.metric("Already received", f"${total_received_commission:,.2f}")
+    
+    with col4:
+        st.metric("Paid Commission", f"${paid_comm_2025:,.2f}")
+        # 使用 caption，并在前面加个小图标
+        st.caption(f"With received commission **{payroll_paid_val}**")
+
+
+    
     
     
