@@ -312,8 +312,8 @@ with tab_apartments:
       return df
     
     df_2025 = read_file("Apartment Referral List","2025")
-    st.dataframe(df_2025)
     df_2025['Received Commission'] = pd.to_numeric(df_2025['Received Commission'], errors='coerce').fillna(0)
+    st.dataframe(df_2025)
     mask_unreceived = (df_2025['状态'] == '已入住')& (df_2025['Received'] == 'FALSE')
     df_unreceived = df_2025[mask_unreceived]
     count_unreceived = len(df_unreceived)
@@ -323,6 +323,7 @@ with tab_apartments:
     col1, col2 = st.columns(2)
     with col1:
     # 使用 popover 包装指标，点击按钮即可弹出详情
+        col1.metric("Pending Received记录数 (已入住)", f"{count_unreceived} 笔")
         with st.popover(f"Pending记录: {count_unreceived} 笔 (点击查看)"):
             st.markdown("### 🏘️ 按公寓分组明细")
             if count_unreceived > 0:
