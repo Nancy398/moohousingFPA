@@ -373,6 +373,7 @@ with tab_apartments:
     expect_commission = df_2025.loc[df_2025['Received'] == 'FALSE', 'Commission'].sum()
     mask_unknown = (df_2025['Received'] == 'FALSE') & (df_2025['Commission'] == 0)
     df_unknown = df_2025[mask_unknown]
+    df_unknown = df_unknown.replace(r'^\s*$', np.nan, regex=True)
     df_unknown = df_unknown.dropna(how='all')
     unknown_commssion = len(df_unreceived)
     st.dataframe(df_unknown)
