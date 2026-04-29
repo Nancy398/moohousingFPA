@@ -313,6 +313,7 @@ with tab_apartments:
     
     df_2025 = read_file("Apartment Referral List","2025")
     df_expense = read_file("Apartments FA","Expense")
+    st.dataframe(df_expense)
     df_2025['Received Commission'] = (
         df_2025['Received Commission']
         .astype(str)
