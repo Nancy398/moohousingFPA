@@ -319,7 +319,7 @@ with tab_apartments:
         df = df.dropna(how='all').reset_index(drop=True)
         return df
     
-    df_2025 = read_file("Apartment Referral List","2025"header_row=1)
+    df_2025 = read_file("Apartment Referral List","2025",header_row=1)
     df_expense = read_file("Apartments FA","Expense")
     st.dataframe(df_expense)
     st.dataframe(df_2025)
