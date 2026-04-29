@@ -287,26 +287,28 @@ with tab_apartments:
       scopes=scope)
       gc = gspread.authorize(credentials)
       worksheet = gc.open(name).worksheet(sheet)
-      rows = worksheet.get_all_values()
-      df = pd.DataFrame(rows)
-      header = df.iloc[0].values.tolist()
-      new_header = []
-      counts = {}
-      for i, col in enumerate(header):
-          new_name = col if col.strip() != "" else f"EmptyCol_{i}"
-          if new_name in counts:
-              counts[new_name] += 1
-              new_name = f"{new_name}_{counts[new_name]}"
-          else:
-              counts[new_name] = 0
-          new_header.append(new_name)
-        # ---------------------------------
-    
-        # 3. 重新指派列名并去掉第一行
-      df.columns = new_header
-      df = df.iloc[1:].reset_index(drop=True)
+      raw_df = pd.DataFrame(rows)
+      new_header = raw_df.iloc[1].str.strip().tolist()
         
+        # --- 核心修复：处理第二行中可能存在的重复或空列名 ---
+      final_header = []
+      counts = {}
+      for i, col in enumerate(new_header):
+          name = col if col and col != "" else f"Column_{i}"
+          if name in counts:
+              counts[name] += 1
+              final_header.append(f"{name}_{counts[name]}")
+          else:
+              counts[name] = 0
+              final_header.append(name)
+        # -----------------------------------------------
+
+        # 3. 重新指派表头，并只保留第三行 (索引 2) 往后的数据
+      df = pd.DataFrame(raw_df.values[2:], columns=final_header)
+        
+        # 4. 可选：去掉全为空的行或列
+      df = df.dropna(how='all').reset_index(drop=True)
       return df
     
     df_2025 = read_file("Apartment Referral List","2025")
-    st.write(df_2025)
+    st.dataframe(df_2025)
