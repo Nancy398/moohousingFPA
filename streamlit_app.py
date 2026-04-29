@@ -333,6 +333,18 @@ with tab_apartments:
         .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
     )
+    df_expense['Commission'] = (
+        df_expense['Commission']
+        .astype(str)
+        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
+        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
+    )
+    df_expense['Expense'] = (
+        df_expense['Expense']
+        .astype(str)
+        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
+        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
+    )
     df_2025['Received Commission'] = pd.to_numeric(df_2025['Received Commission'], errors='coerce').fillna(0)
     df_expense['Commission'] = pd.to_numeric(df_expense['Commission'], errors='coerce').fillna(0)
     df_expense['Expense'] = pd.to_numeric(df_expense['Expense'], errors='coerce').fillna(0)
