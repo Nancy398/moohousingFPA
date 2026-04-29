@@ -314,7 +314,8 @@ with tab_apartments:
     df_2025 = read_file("Apartment Referral List","2025")
     st.dataframe(df_2025)
     df_2025['Commission'] = pd.to_numeric(df_2025['Received Commission'], errors='coerce').fillna(0)
-    mask_unreceived = (df_2025['状态'] == '已入住') & (df_2025['Received'] == False)
+    mask_unreceived = (df_2025['状态'] == '已入住')
+    # & (df_2025['Received'] == False)
     df_unreceived = df_2025[mask_unreceived]
     st.dataframe(df_unreceived)
     count_unreceived = len(df_unreceived)
