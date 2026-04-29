@@ -364,7 +364,7 @@ with tab_apartments:
     checked_in_count = len(df_2025[df_2025['状态'] == '已入住'])
     received_count = checked_in_count-count_unreceived
     expect_commission = df_2025.loc[df_2025['Received'] == 'FALSE', 'Commission'].sum()
-    unknown_commssion = len(([df_2025['Received'] == 'FALSE')& (df_2025['Commission'] == ''))
+    unknown_commssion = len((df_2025['Received'] == 'FALSE')& (df_2025['Commission'] == ''))
     st.write(unknown_commssion)
 
 # --- 2. 从 df_expense 计算指标 ---
