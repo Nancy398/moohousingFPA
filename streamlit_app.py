@@ -280,36 +280,45 @@ with tab_overview:
     st.bar_chart(type_df.set_index('Property ID')['Profit'])
 with tab_apartments:
     @st.cache_data(ttl=300)
-    def read_file(name,sheet):
-      scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-      credentials = Credentials.from_service_account_info(
-      st.secrets["GOOGLE_APPLICATION_CREDENTIALS"], 
-      scopes=scope)
-      gc = gspread.authorize(credentials)
-      worksheet = gc.open(name).worksheet(sheet)
-      rows = worksheet.get_all_values() 
-      raw_df = pd.DataFrame(rows)
-      new_header = raw_df.iloc[1].str.strip().tolist()
+    def read_file(name, sheet, header_row=0):
+        """
+        header_row: 表头所在的行索引（0 代表第 1 行，1 代表第 2 行，依此类推）
+        """
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        credentials = Credentials.from_service_account_info(
+            st.secrets["GOOGLE_APPLICATION_CREDENTIALS"], 
+            scopes=scope
+        )
+        gc = gspread.authorize(credentials)
+        worksheet = gc.open(name).worksheet(sheet)
+        rows = worksheet.get_all_values() 
+        raw_df = pd.DataFrame(rows)
+    
+        if raw_df.empty:
+            return raw_df
+    
+        # 1. 根据传入的 header_row 动态提取表头
+        new_header = raw_df.iloc[header_row].str.strip().tolist()
+            
+        # 2. 核心修复：处理重复或空列名（逻辑保持不变）
+        final_header = []
+        counts = {}
+        for i, col in enumerate(new_header):
+            name_val = col if col and col != "" else f"Column_{i}"
+            if name_val in counts:
+                counts[name_val] += 1
+                final_header.append(f"{name_val}_{counts[name_val]}")
+            else:
+                counts[name_val] = 0
+                final_header.append(name_val)
+    
+        # 3. 动态切片：数据从 header_row 的下一行开始取
+        df = pd.DataFrame(raw_df.values[header_row + 1:], columns=final_header)
+            
+        # 4. 去掉全为空的行
+        df = df.dropna(how='all').reset_index(drop=True)
         
-        # --- 核心修复：处理第二行中可能存在的重复或空列名 ---
-      final_header = []
-      counts = {}
-      for i, col in enumerate(new_header):
-          name = col if col and col != "" else f"Column_{i}"
-          if name in counts:
-              counts[name] += 1
-              final_header.append(f"{name}_{counts[name]}")
-          else:
-              counts[name] = 0
-              final_header.append(name)
-        # -----------------------------------------------
-
-        # 3. 重新指派表头，并只保留第三行 (索引 2) 往后的数据
-      df = pd.DataFrame(raw_df.values[2:], columns=final_header)
-        
-        # 4. 可选：去掉全为空的行或列
-      df = df.dropna(how='all').reset_index(drop=True)
-      return df
+        return df
     
     df_2025 = read_file("Apartment Referral List","2025")
     df_expense = read_file("Apartments FA","Expense")
