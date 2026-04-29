@@ -293,4 +293,4 @@ with tab_apartments:
       return df
     
     df_2025 = read_file("Apartment Referral List","2025")
-    st.dataframe(df_2025)
+    st.write(df_2025)
