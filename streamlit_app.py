@@ -363,12 +363,12 @@ with tab_apartments:
                 st.table(apt_summary) # 简单的表格展示预览
             else:
                 st.write("目前没有待收记录。")
-    col2.metric("Already received", f"${total_received_commission:,.2f}")
+    col4.metric("Already received", f"${total_received_commission:,.2f}")
     
-    with col4:
-        st.metric("Paid Commission", f"${paid_comm_2025:,.2f}")
-        # 使用 caption，并在前面加个小图标
-        st.caption(f"With received commission **{payroll_paid_val}**")
+    # with col4:
+    #     st.metric("Paid Commission", f"${paid_comm_2025:,.2f}")
+    #     # 使用 caption，并在前面加个小图标
+    #     st.caption(f"With received commission **{payroll_paid_val}**")
 
 
     
