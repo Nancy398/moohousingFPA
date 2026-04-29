@@ -383,7 +383,7 @@ with tab_apartments:
     with col1:
         st.metric("Paid Commission", f"${paid_comm_2025:,.2f}")
         # 使用 caption，并在前面加个小图标
-        st.caption(f"With received commission **{payroll_paid_val}**")
+        st.caption(f"With received commission **f'${payroll_paid_val:,.2f}'**")
 
 
     
