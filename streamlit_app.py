@@ -321,7 +321,6 @@ with tab_apartments:
     
     df_2025 = read_file("Apartment Referral List","2025",header_row=1)
     df_expense = read_file("Apartments FA","Expense")
-    st.dataframe(df_expense)
     df_2025['Received Commission'] = (
         df_2025['Received Commission']
         .astype(str)
@@ -335,7 +334,10 @@ with tab_apartments:
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
     )
     df_2025['Received Commission'] = pd.to_numeric(df_2025['Received Commission'], errors='coerce').fillna(0)
+    df_expense['Commission'] = pd.to_numeric(df_expense['Commission'], errors='coerce').fillna(0)
+    df_expense['Expense'] = pd.to_numeric(df_expense['Expense'], errors='coerce').fillna(0)
     st.dataframe(df_2025)
+    st.dataframe(df_expense)
     mask_unreceived = (df_2025['状态'] == '已入住')& (df_2025['Received'] == 'FALSE')
     df_unreceived = df_2025[mask_unreceived]
     count_unreceived = len(df_unreceived)
@@ -355,7 +357,7 @@ with tab_apartments:
     with col3:
     # 使用 popover 包装指标，点击按钮即可弹出详情
         st.metric("Pending Received记录数 (已入住)", f"{count_unreceived}")
-        with st.popover(f"Click to see the details by Apartments"):
+        with st.popover(f"Click to see the details"):
             st.markdown("### 🏘️ 按公寓分组明细")
             if count_unreceived > 0:
                 # 统计每个公寓的数量
@@ -364,11 +366,12 @@ with tab_apartments:
             else:
                 st.write("目前没有待收记录。")
     col4.metric("Already received", f"${total_received_commission:,.2f}")
-    
-    # with col4:
-    #     st.metric("Paid Commission", f"${paid_comm_2025:,.2f}")
-    #     # 使用 caption，并在前面加个小图标
-    #     st.caption(f"With received commission **{payroll_paid_val}**")
+
+    col1, col2,col3,col4 = st.columns(4)
+    with col1:
+        st.metric("Paid Commission", f"${paid_comm_2025:,.2f}")
+        # 使用 caption，并在前面加个小图标
+        st.caption(f"With received commission **{payroll_paid_val}**")
 
 
     
