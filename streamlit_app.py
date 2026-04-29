@@ -318,7 +318,7 @@ with tab_apartments:
     df_unreceived = df_2025[mask_unreceived]
     count_unreceived = len(df_unreceived)
     total_received_commission = df_2025.loc[df_2025['Received'] == 'TRUE', 'Received Commission'].sum()
-
+    st.write(total_received_commission)
     st.title("Apartments - 2025")
     col1, col2 = st.columns(2)
     with col1:
