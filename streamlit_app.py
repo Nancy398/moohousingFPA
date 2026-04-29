@@ -355,7 +355,7 @@ with tab_apartments:
     with col3:
     # 使用 popover 包装指标，点击按钮即可弹出详情
         col1.metric("Pending Received记录数 (已入住)", f"{count_unreceived}")
-        with st.popover(f"Click to see the details by Apartments"):
+        with st.expander(f"Click to see the details by Apartments"):
             st.markdown("### 🏘️ 按公寓分组明细")
             if count_unreceived > 0:
                 # 统计每个公寓的数量
