@@ -374,8 +374,6 @@ with tab_apartments:
     mask_unknown = (df_2025['Received'] == 'FALSE') & (df_2025['Commission'] == 0)
     df_unknown = df_2025[mask_unknown]
     unknown_commssion = len(df_unknown)
-    st.dataframe(df_unknown)
-    st.write(unknown_commssion)
 
 # --- 2. 从 df_expense 计算指标 ---
     col1, col2,col3,col4 = st.columns(4)
@@ -400,6 +398,7 @@ with tab_apartments:
         st.caption(f"With received commission **${payroll_paid_val:,.2f}**")
     col2.metric("Other Expense", f"${total_expense:,.2f}")
     col3.metric("Expected Commission to be Received", f"${expect_commission:,.2f}")
+    col4.metric("Unknown Status", f"${int(unknown_commssion)")
 
     
     
