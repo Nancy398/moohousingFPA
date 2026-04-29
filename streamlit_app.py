@@ -316,10 +316,8 @@ with tab_apartments:
     df_2025['Commission'] = pd.to_numeric(df_2025['Received Commission'], errors='coerce').fillna(0)
     mask_unreceived = (df_2025['状态'] == '已入住')& (df_2025['Received'] == 'FALSE')
     df_unreceived = df_2025[mask_unreceived]
-    st.dataframe(df_unreceived)
     count_unreceived = len(df_unreceived)
-    st.write(count_unreceived)
-    total_received_commission = df_2025.loc[df_2025['Received'] == True, 'Received Commission'].sum()
+    total_received_commission = df_2025.loc[df_2025['Received'] == 'TRUE', 'Received Commission'].sum()
 
     st.title("Apartments - 2025")
     col1, col2 = st.columns(2)
@@ -331,10 +329,6 @@ with tab_apartments:
                 # 统计每个公寓的数量
                 apt_summary = df_unreceived.groupby('Apartment').size().reset_index(name='数量')
                 st.table(apt_summary) # 简单的表格展示预览
-                
-                st.markdown("---")
-                st.markdown("### 📄 原始明细表")
-                st.dataframe(df_unreceived[['Apartment', 'Commission', 'Received Commission', 'Payroll']])
             else:
                 st.write("目前没有待收记录。")
     col2.metric("Already received", f"${total_received_commission:,.2f}")
