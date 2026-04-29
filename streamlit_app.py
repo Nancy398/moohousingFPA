@@ -356,7 +356,6 @@ with tab_apartments:
     df_2025['Commission'] = pd.to_numeric(df_2025['Commission'], errors='coerce').fillna(0)
     df_expense['Commission'] = pd.to_numeric(df_expense['Commission'], errors='coerce').fillna(0)
     df_expense['Expense'] = pd.to_numeric(df_expense['Expense'], errors='coerce').fillna(0)
-    st.dataframe(df_2025)
     # st.dataframe(df_expense)
     mask_unreceived = (df_2025['状态'] == '已入住')& (df_2025['Received'] == 'FALSE')
     df_unreceived = df_2025[mask_unreceived]
@@ -398,7 +397,7 @@ with tab_apartments:
         st.caption(f"With received commission **${payroll_paid_val:,.2f}**")
     col2.metric("Other Expense", f"${total_expense:,.2f}")
     col3.metric("Expected Commission to be Received", f"${expect_commission:,.2f}")
-    col4.metric("Unknown Status", f"${int(unknown_commssion)")
+    col4.metric("Unknown Status", f"${int(unknown_commssion)}")
 
     
     
