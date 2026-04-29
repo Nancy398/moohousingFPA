@@ -346,6 +346,7 @@ with tab_apartments:
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
     )
     df_2025['Received Commission'] = pd.to_numeric(df_2025['Received Commission'], errors='coerce').fillna(0)
+    df_2025['Bonus to resident'] = pd.to_numeric(df_2025['Bonus to resident'], errors='coerce').fillna(0)
     df_expense['Commission'] = pd.to_numeric(df_expense['Commission'], errors='coerce').fillna(0)
     df_expense['Expense'] = pd.to_numeric(df_expense['Expense'], errors='coerce').fillna(0)
     st.dataframe(df_2025)
