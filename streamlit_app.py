@@ -345,13 +345,12 @@ with tab_apartments:
         .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
     )
-    df_expense['Commission'] = (
-        df_expense['Commission']
+    df_2025['Commission'] = (
+        df_2025['Commission']
         .astype(str)
         .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
     )
-    st.dataframe(df_2025)
     df_2025['Received Commission'] = pd.to_numeric(df_2025['Received Commission'], errors='coerce').fillna(0)
     df_2025['Bonus to resident'] = pd.to_numeric(df_2025['Bonus to resident'], errors='coerce').fillna(0)
     df_2025['Commission'] = pd.to_numeric(df_2025['Commission'], errors='coerce').fillna(0)
@@ -397,7 +396,7 @@ with tab_apartments:
         st.metric("Paid Commission", f"${paid_comm_2025:,.2f}")
         st.caption(f"With received commission **${payroll_paid_val:,.2f}**")
     col2.metric("Other Expense", f"${total_expense:,.2f}")
-    col2.metric("Expected Commission to be Received", f"${expect_commission:,.2f}")
+    col3.metric("Expected Commission to be Received", f"${expect_commission:,.2f}")
 
     
     
