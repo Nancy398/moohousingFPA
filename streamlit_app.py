@@ -279,7 +279,7 @@ with tab_overview:
     # (可选) 展示该地块在同类中的表现
     st.bar_chart(type_df.set_index('Property ID')['Profit'])
 with tab_apartments:
-    # @st.cache_data(ttl=300)
+    @st.cache_data(ttl=300)
     def read_file(name,sheet):
       scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
       credentials = Credentials.from_service_account_info(
@@ -313,9 +313,12 @@ with tab_apartments:
     
     df_2025 = read_file("Apartment Referral List","2025")
     st.dataframe(df_2025)
+    df_2025['Commission'] = pd.to_numeric(df_2025['Commission'], errors='coerce').fillna(0)
     mask_unreceived = (df_2025['状态'] == '已入住') & (df_2025['Received'] == False)
     df_unreceived = df_2025[mask_unreceived]
+    st.dataframe(df_unreceived)
     count_unreceived = len(df_unreceived)
+    st.write(count_unreceived)
     total_received_commission = df_2025.loc[df_2025['Received'] == True, 'Received Commission'].sum()
 
     st.title("Apartments - 2025")
@@ -334,6 +337,6 @@ with tab_apartments:
                 st.dataframe(df_unreceived[['Apartment', 'Commission', 'Received Commission', 'Payroll']])
             else:
                 st.write("目前没有待收记录。")
-    col2.metric("Already received", f"¥{total_received_commission:,.2f}")
+    col2.metric("Already received", f"${total_received_commission:,.2f}")
     
     
