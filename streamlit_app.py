@@ -313,3 +313,27 @@ with tab_apartments:
     
     df_2025 = read_file("Apartment Referral List","2025")
     st.dataframe(df_2025)
+    mask_unreceived = (df_2025['状态'] == '已入住') & (df_2025['Received'] == False)
+    df_unreceived = df_2025[mask_unreceived]
+    count_unreceived = len(df_unreceived)
+    total_received_commission = df_2025.loc[df_2025['Received'] == True, 'REceived Commission'].sum()
+
+    st.title("Apartments - 2025")
+    col1, col2 = st.columns(2)
+    with col1:
+    # 使用 popover 包装指标，点击按钮即可弹出详情
+        with st.popover(f"Pending记录: {count_unreceived} 笔 (点击查看)"):
+            st.markdown("### 🏘️ 按公寓分组明细")
+            if count_unreceived > 0:
+                # 统计每个公寓的数量
+                apt_summary = df_unreceived.groupby('Apartment').size().reset_index(name='数量')
+                st.table(apt_summary) # 简单的表格展示预览
+                
+                st.markdown("---")
+                st.markdown("### 📄 原始明细表")
+                st.dataframe(df_unreceived[['Apartment', 'Commission', 'Received Commission', 'Payroll']])
+            else:
+                st.write("目前没有待收记录。")
+    col2.metric("Already received", f"¥{total_received_commission:,.2f}")
+    
+    
