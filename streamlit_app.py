@@ -10,11 +10,10 @@ import gspread
 import datetime
 from gspread_dataframe import set_with_dataframe
 
+st.set_page_config(page_title="Property Strategy", layout="wide")
+tab_overview, tab_apartments = st.tabs(["📊 Property Overview", "🏢 Apartments"])
+
 with tab_overview:
-    st.set_page_config(page_title="Property Strategy", layout="wide")
-    tab_overview, tab_apartments = st.tabs(["📊 Property Overview", "🏢 Apartments"])
-    
-    
     APP_ID = st.secrets["Larksuite"]["APP_ID"]
     APP_SECRET = st.secrets["Larksuite"]["APP_SECRET"]
     APP_TOKEN = "Bu3QbY095aE5H1sdXtvjoRG4pjb"
