@@ -316,7 +316,7 @@ with tab_apartments:
     mask_unreceived = (df_2025['状态'] == '已入住') & (df_2025['Received'] == False)
     df_unreceived = df_2025[mask_unreceived]
     count_unreceived = len(df_unreceived)
-    total_received_commission = df_2025.loc[df_2025['Received'] == True, 'REceived Commission'].sum()
+    total_received_commission = df_2025.loc[df_2025['Received'] == True, 'Received Commission'].sum()
 
     st.title("Apartments - 2025")
     col1, col2 = st.columns(2)
