@@ -322,7 +322,6 @@ with tab_apartments:
     df_2025 = read_file("Apartment Referral List","2025",header_row=1)
     df_expense = read_file("Apartments FA","Expense")
     st.dataframe(df_expense)
-    st.dataframe(df_2025)
     df_2025['Received Commission'] = (
         df_2025['Received Commission']
         .astype(str)
@@ -344,7 +343,7 @@ with tab_apartments:
     payroll_paid_val = df_2025[(df_2025['Payroll'] == 'TRUE') & (df_2025['Received'] == 'TRUE')]['Received Commission'].sum()
     payroll_pending_received_val = df_2025[(df_2025['Payroll'] == 'FALSE') & (df_2025['Received'] == 'TRUE')]['Received Commission'].sum()
     paid_comm_2025 = df_expense[(df_expense['Year'] == '2025')]['Commission'].sum()
-    other_expense_2025 = df_expense[(df_expense['year'] == 2025)]['Expense'].sum()
+    other_expense_2025 = df_expense[(df_expense['Year'] == 2025)]['Expense'].sum()
     bonus_residents_2025 = df_2025.loc[df_2025['Payroll'] == 'TRUE', 'Bonus to resident'].sum()
     checked_in_count = len(df_2025[df_2025['状态'] == '已入住'])
     received_count = checked_in_count-count_unreceived
