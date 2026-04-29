@@ -279,7 +279,7 @@ with tab_overview:
     # (可选) 展示该地块在同类中的表现
     st.bar_chart(type_df.set_index('Property ID')['Profit'])
 with tab_apartments:
-    @st.cache_data(ttl=300)
+    # @st.cache_data(ttl=300)
     def read_file(name,sheet):
       scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
       credentials = Credentials.from_service_account_info(
