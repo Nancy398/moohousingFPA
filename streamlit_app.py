@@ -374,6 +374,7 @@ with tab_apartments:
     mask_unknown = (df_2025['Received'] == 'FALSE') & (df_2025['Commission'] == 0)
     df_unknown = df_2025[mask_unknown]
     unknown_commssion = len(df_unreceived)
+    st.dataframe(df_unknown)
     st.write(unknown_commssion)
 
 # --- 2. 从 df_expense 计算指标 ---
