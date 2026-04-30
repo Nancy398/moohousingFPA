@@ -502,7 +502,7 @@ with tab_apartments:
             # 自定义颜色：逾期用醒目的深橙/红，正常用蓝色
             color_discrete_map={
                 "⚠️ Slower than Expected": "#F8A1A1", 
-                "📅 Future Expected": "#85929E"
+                "📅 Future Expected": "#B0C4DE"
             },
             text_auto='.2s',
             barmode='stack' # 确保是堆叠模式
