@@ -373,6 +373,9 @@ with tab_apartments:
     mask_unknown = (df_2025['Received'] == 'FALSE') & (df_2025['Commission'] == 0)
     df_unknown = df_2025[mask_unknown]
     unknown_commssion = len(df_unknown)
+    realized_NI = total_received_commission - total_expense - paid_comm_2025 - payroll_pending_received_val*0.15
+    expected_NI = expect_commission * 0.85
+    total_NI = realized_NI+expected_NI
 
 # --- 2. 从 df_expense 计算指标 ---
     col1, col2,col3,col4 = st.columns(4)
@@ -389,6 +392,13 @@ with tab_apartments:
     col3.metric("Expected Commission to be Received", f"${expect_commission:,.2f}")
     col4.metric("Unknown Status", f"{int(unknown_commssion)}")
 
+    col1, col2,col3,col4 = st.columns(4)
+    with col1:
+        st.metric("Realized Net Income - 2025", f"${realized_NI:,.2f}")
+        st.caption(f"With Unpaid commission **${payroll_pending_received_val*0.15:,.2f}**")
+    col2.metric("Expected Net Income - 2025", f"${expected_NI:,.2f}")
+    col3.metric("Total Net Income - Estimated", f"${total_NI:,.2f}")
+    
     st.markdown("### 🏘️ Pending Received by Apartment")
     if count_unreceived > 0:
         apt_summary = df_unreceived.groupby('Apartment').agg(
