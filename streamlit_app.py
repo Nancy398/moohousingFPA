@@ -391,13 +391,24 @@ with tab_apartments:
 
     st.markdown("### 🏘️ Pending Received by Apartment")
     if count_unreceived > 0:
-        # 统计每个公寓的数量
         apt_summary = df_unreceived.groupby('Apartment').agg(
-            数量=('Apartment', 'size')，             # 统计行数
-            Pending Received =('Commission', 'sum'),           # 统计 Commission 的总和
-            Unknown =('Commission', lambda x: (x == 0).sum()) 
+            Count=('Apartment', 'size'),                  # 统计行数
+            Pending_Received=('Commission', 'sum'),       # 注意：变量名中间用下划线，不能用空格
+            Unknown=('Commission', lambda x: (pd.to_numeric(x) == 0).sum()) # 统计金额为 0 的记录
         ).reset_index()
-        st.table(apt_summary) # 简单的表格展示预览
+    
+        # 在 Streamlit 展示
+        st.dataframe(
+            apt_summary,
+            column_config={
+                "Apartment": "Apartment Name",
+                "Count": "Total Records",
+                "Pending_Received": st.column_config.NumberColumn("Pending Total", format="$%.2f"),
+                "Unknown": st.column_config.NumberColumn("Missing Info", format="%d ⚠️")
+            },
+            hide_index=True,
+            use_container_width=True
+        )
     else:
         st.write("目前没有待收记录。")
 
