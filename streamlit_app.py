@@ -296,7 +296,6 @@ with tab_apartments:
     
         if raw_df.empty:
             return raw_df
-    
         # 1. 根据传入的 header_row 动态提取表头
         new_header = raw_df.iloc[header_row].str.strip().tolist()
             
@@ -318,17 +317,26 @@ with tab_apartments:
         # 4. 去掉全为空的行
         df = df.dropna(how='all').reset_index(drop=True)
         return df
+    with st.container():
+    select_year = st.segmented_control(
+        "选择年份",
+        options=[2025, 2026],
+        default=2026,  # 默认高亮 2026
+        label_visibility="collapsed" # 隐藏多余标签
+    )
+    st.title(f"📊 {select_year} Apartments Analysis")
+    st.divider()
     
-    df_2025 = read_file("Apartment Referral List","2025",header_row=1)
+    df_curr = read_file("Apartment Referral List",select_year,header_row=1)
     df_expense = read_file("Apartments FA","Expense")
-    df_2025['Received Commission'] = (
-        df_2025['Received Commission']
+    df_curr['Received Commission'] = (
+        df_curr['Received Commission']
         .astype(str)
         .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
     )
-    df_2025['Bonus to resident'] = (
-        df_2025['Bonus to resident']
+    df_curr['Bonus to resident'] = (
+        df_curr['Bonus to resident']
         .astype(str)
         .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
@@ -345,35 +353,35 @@ with tab_apartments:
         .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
     )
-    df_2025['Commission'] = (
-        df_2025['Commission']
+    df_curr['Commission'] = (
+        df_curr['Commission']
         .astype(str)
         .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
         .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
     )
-    df_2025['Received Commission'] = pd.to_numeric(df_2025['Received Commission'], errors='coerce').fillna(0)
-    df_2025['Bonus to resident'] = pd.to_numeric(df_2025['Bonus to resident'], errors='coerce').fillna(0)
-    df_2025['Commission'] = pd.to_numeric(df_2025['Commission'], errors='coerce').fillna(0)
+    df_curr['Received Commission'] = pd.to_numeric(df_curr['Received Commission'], errors='coerce').fillna(0)
+    df_curr['Bonus to resident'] = pd.to_numeric(df_curr['Bonus to resident'], errors='coerce').fillna(0)
+    df_curr['Commission'] = pd.to_numeric(df_curr['Commission'], errors='coerce').fillna(0)
     df_expense['Commission'] = pd.to_numeric(df_expense['Commission'], errors='coerce').fillna(0)
     df_expense['Expense'] = pd.to_numeric(df_expense['Expense'], errors='coerce').fillna(0)
     # st.dataframe(df_expense)
-    mask_unreceived = (df_2025['状态'] == '已入住')& (df_2025['Received'] == 'FALSE')
-    df_unreceived = df_2025[mask_unreceived]
+    mask_unreceived = (df_curr['状态'] == '已入住')& (df_curr['Received'] == 'FALSE')
+    df_unreceived = df_curr[mask_unreceived]
     count_unreceived = len(df_unreceived)
-    total_received_commission = df_2025.loc[df_2025['Received'] == 'TRUE', 'Received Commission'].sum()
-    payroll_paid_val = df_2025[(df_2025['Payroll'] == 'TRUE') & (df_2025['Received'] == 'TRUE')]['Received Commission'].sum()
-    payroll_pending_received_val = df_2025[(df_2025['Payroll'] == 'FALSE') & (df_2025['Received'] == 'TRUE')]['Received Commission'].sum()
-    paid_comm_2025 = df_expense[(df_expense['Year'] == '2025')]['Commission'].sum()
-    other_expense_2025 = df_expense[(df_expense['Year'] == '2025')]['Expense'].sum()
-    bonus_residents_2025 = df_2025.loc[df_2025['Payroll'] == 'TRUE', 'Bonus to resident'].sum()
-    total_expense = other_expense_2025 + bonus_residents_2025
-    checked_in_count = len(df_2025[df_2025['状态'] == '已入住'])
+    total_received_commission = df_curr.loc[df_curr['Received'] == 'TRUE', 'Received Commission'].sum()
+    payroll_paid_val = df_curr[(df_curr['Payroll'] == 'TRUE') & (df_curr['Received'] == 'TRUE')]['Received Commission'].sum()
+    payroll_pending_received_val = df_curr[(df_curr['Payroll'] == 'FALSE') & (df_curr['Received'] == 'TRUE')]['Received Commission'].sum()
+    paid_comm_curr = df_expense[(df_expense['Year'] == select_year)]['Commission'].sum()
+    other_expense_curr = df_expense[(df_expense['Year'] == 'select_year)]['Expense'].sum()
+    bonus_residents_curr = df_curr.loc[df_curr['Payroll'] == 'TRUE', 'Bonus to resident'].sum()
+    total_expense = other_expense_curr + bonus_residents_curr
+    checked_in_count = len(df_curr[df_curr['状态'] == '已入住'])
     received_count = checked_in_count-count_unreceived
-    expect_commission = df_2025.loc[df_2025['Received'] == 'FALSE', 'Commission'].sum()
-    mask_unknown = (df_2025['Received'] == 'FALSE') & (df_2025['Commission'] == 0)
-    df_unknown = df_2025[mask_unknown]
+    expect_commission = df_curr.loc[df_curr['Received'] == 'FALSE', 'Commission'].sum()
+    mask_unknown = (df_curr['Received'] == 'FALSE') & (df_curr['Commission'] == 0)
+    df_unknown = df_curr[mask_unknown]
     unknown_commssion = len(df_unknown)
-    realized_NI = total_received_commission - total_expense - paid_comm_2025 - payroll_pending_received_val*0.15
+    realized_NI = total_received_commission - total_expense - paid_comm_curr - payroll_pending_received_val*0.15
     expected_NI = expect_commission * 0.85
     total_NI = realized_NI+expected_NI
 
@@ -386,7 +394,7 @@ with tab_apartments:
 
     col1, col2,col3,col4 = st.columns(4)
     with col1:
-        st.metric("Paid Commission", f"${paid_comm_2025:,.2f}")
+        st.metric("Paid Commission", f"${paid_comm_curr:,.2f}")
         st.caption(f"With received commission **${payroll_paid_val:,.2f}**")
     col2.metric("Other Expense", f"${total_expense:,.2f}")
     col3.metric("Expected Commission to be Received", f"${expect_commission:,.2f}")
@@ -394,9 +402,9 @@ with tab_apartments:
 
     col1, col2,col3,col4 = st.columns(4)
     with col1:
-        st.metric("Realized Net Income - 2025", f"${realized_NI:,.2f}")
+        st.metric("Realized Net Income - {select_year}", f"${realized_NI:,.2f}")
         st.caption(f"With Unpaid commission **${payroll_pending_received_val*0.15:,.2f}**")
-    col2.metric("Expected Net Income - 2025", f"${expected_NI:,.2f}")
+    col2.metric("Expected Net Income - curr", f"${expected_NI:,.2f}")
     col3.metric("Total Net Income - Estimated", f"${total_NI:,.2f}")
     
     st.markdown("### 🏘️ Pending Received by Apartment")
