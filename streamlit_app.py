@@ -467,51 +467,60 @@ with tab_apartments:
     today = pd.to_datetime(now.date())
     # 获取下个月的第一天，并格式化为 YYYY-MM
     next_month_str = (now + relativedelta(months=1)).strftime('%Y-%m')
-    df_pred = df_curr[df_curr['Received'] == "FALSE"].copy()
-    df_pred['Predicted_Date'] = pd.to_datetime(df_pred['Predicted_Date'], errors='coerce')
+    def classify_forecast(row):
+    if row['Received'] == True:
+        return None, None
+    
+    pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
+    
+    # 如果已逾期
+    if pd.isna(pred_date) or pred_date < today:
+        return next_month_str, "⚠️ Overdue (逾期顺延)"
+    else:
+        # 正常未来款项
+        return pred_date.strftime('%Y-%m'), "📅 Future (正常预期)"
 
-    def assign_forecast_month(row):
-        if pd.isna(row['Predicted_Date']):
-            return next_month_str # 缺失日期的也暂且放到下个月
-        
-        # 如果预测日期已经过了今天（逾期），统统归到下个月
-        if row['Predicted_Date'] < today:
-            return next_month_str
-        else:
-            # 没到期的，按原定月份
-            return row['Predicted_Date'].strftime('%Y-%m')
+# 应用函数生成两个新列
+    df_curr[['Forecast_Month', 'Category']] = df_curr.apply(
+        lambda x: pd.Series(classify_forecast(x)), axis=1
+    )
     
-    df_pred['Forecast_Month'] = df_pred.apply(assign_forecast_month, axis=1)
+    # 3. 聚合数据用于绘图
+    plot_data = df_curr[df_curr['Forecast_Month'].notna()].groupby(
+        ['Forecast_Month', 'Category']
+    )['Commission'].sum().reset_index()
     
-    # 3. 聚合数据
-    monthly_data = df_pred.groupby('Forecast_Month')['Commission'].sum().reset_index()
-    
-    # 4. 绘图
-    if not monthly_data.empty:
-        # 排序确保月份连续
-        monthly_data = monthly_data.sort_values('Forecast_Month')
+    # 4. 绘制堆叠柱状图
+    if not plot_data.empty:
+        # 确保月份排序正确
+        plot_data = plot_data.sort_values(['Forecast_Month', 'Category'])
         
         fig = px.bar(
-            monthly_data,
+            plot_data,
             x='Forecast_Month',
             y='Commission',
+            color='Category',
+            # 自定义颜色：逾期用醒目的深橙/红，正常用蓝色
+            color_discrete_map={
+                "⚠️ Overdue (逾期顺延)": "#FF4B4B", 
+                "📅 Future (正常预期)": "#1C83E1"
+            },
             text_auto='.2s',
-            title=f"📅 未来现金流分布预期 (逾期款项已顺延至 {next_month_str})",
-            labels={'Forecast_Month': '预计到账月份', 'Commission': '金额 ($)'}
+            title=f"📅 现金流构成预测 (逾期款已归入 {next_month_str})",
+            barmode='stack' # 确保是堆叠模式
         )
         
-        # 这里的颜色可以整齐统一，不再区分红蓝，因为逻辑上它们现在都是“未来”
-        fig.update_traces(marker_color='#636EFA', textposition='outside', cliponaxis=False)
-        fig.update_layout(height=450, margin=dict(t=50, b=20, l=20, r=20))
+        fig.update_traces(textposition='inside') # 数字显示在柱子内部
+        fig.update_layout(
+            xaxis_title="预计入账月份",
+            yaxis_title="金额 ($)",
+            legend_title="款项类型",
+            hovermode="x unified"
+        )
         
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("目前没有待回款项。")
-    if not monthly_forecast.empty:
-        st.bar_chart(data=monthly_forecast, x='Month', y='Commission')
-        st.caption("注：以上基于历史平均回款周期预测。")
-    else:
-        st.info("暂无未来现金流预测数据。")
+        st.info("💡 暂无待收款项数据。")
         
     st.markdown("### 🏘️ Pending Received by Apartment")
     
