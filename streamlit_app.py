@@ -393,8 +393,7 @@ with tab_apartments:
     if count_unreceived > 0:
         # 统计每个公寓的数量
         apt_summary = df_unreceived.groupby('Apartment').agg(
-            
-            数量=('Apartment', 'size'),                  # 统计行数
+            数量=('Apartment', 'size')，             # 统计行数
             Pending Received =('Commission', 'sum'),           # 统计 Commission 的总和
             Unknown =('Commission', lambda x: (x == 0).sum()) 
         ).reset_index()
