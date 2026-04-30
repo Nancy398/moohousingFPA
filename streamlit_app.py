@@ -432,16 +432,10 @@ with tab_apartments:
 
 # 筛选未收到的单子
     unreceived_df = df_curr[df_curr['Received'] == "FALSE"].copy()
-    st.dataframe(unreceived_df)
     unreceived_df['Predicted_Date'] = pd.to_datetime(unreceived_df['Predicted_Date'])
-    
-    # A. 已逾期 (预测日期 < 今天)
     overdue_df = unreceived_df[unreceived_df['Predicted_Date'] < today]
     overdue_amount = overdue_df['Commission'].sum()
-    
-    # B. 未来待收 (预测日期 >= 今天)
     future_df = unreceived_df[unreceived_df['Predicted_Date'] >= today]
-    st.dataframe(future_df)
     future_amount = future_df['Commission'].sum()
     
 
@@ -468,9 +462,8 @@ with tab_apartments:
     col3.metric("Total Net Income - Estimated", f"${total_NI:,.2f}")
     col4.metric("Net Income per room", f"${NI_per_room:,.2f}")
 
-    future_df['Month'] = future_df['Predicted_Date'].dt.strftime('%Y-%m')
-    monthly_forecast = future_df.groupby('Month')['Commission'].sum().reset_index()
-    st.dataframe(future_df)
+    unreceived_df['Month'] = unreceived_df['Predicted_Date'].dt.strftime('%Y-%m')
+    monthly_forecast = unreceived_df.groupby('Month')['Commission'].sum().reset_index()
     st.dataframe(monthly_forecast)
     if not monthly_forecast.empty:
         st.bar_chart(data=monthly_forecast, x='Month', y='Commission')
