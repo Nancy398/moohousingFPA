@@ -431,7 +431,7 @@ with tab_apartments:
     today = pd.to_datetime(datetime.datetime.now().date())
 
 # 筛选未收到的单子
-    unreceived_df = df_curr[df_curr['Received'] == False].copy()
+    unreceived_df = df_curr[df_curr['Received'] == "FALSE"].copy()
     unreceived_df['Predicted_Date'] = pd.to_datetime(unreceived_df['Predicted_Date'])
     
     # A. 已逾期 (预测日期 < 今天)
