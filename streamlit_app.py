@@ -327,7 +327,7 @@ with tab_apartments:
         
         # 2. 清洗日期格式
         df_all_history['Move-in Date'] = pd.to_datetime(df_all_history['入住时间'], errors='coerce')
-        df_all_history['Received Date'] = pd.to_datetime(df_all_history['Receive Date'], errors='coerce')
+        df_all_history['Received Date'] = pd.to_datetime(df_all_history['Receive date'], errors='coerce')
         
         # 3. 筛选已回款的“成功案例”
         paid_mask = (
