@@ -403,9 +403,9 @@ with tab_apartments:
 
     col1, col2,col3,col4 = st.columns(4)
     with col1:
-        st.metric("Realized Net Income - {select_year}", f"${realized_NI:,.2f}")
+        st.metric("Realized Net Income", f"${realized_NI:,.2f}")
         st.caption(f"With Unpaid commission **${payroll_pending_received_val*0.15:,.2f}**")
-    col2.metric("Expected Net Income - curr", f"${expected_NI:,.2f}")
+    col2.metric("Expected Net Income", f"${expected_NI:,.2f}")
     col3.metric("Total Net Income - Estimated", f"${total_NI:,.2f}")
     
     st.markdown("### 🏘️ Pending Received by Apartment")
