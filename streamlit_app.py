@@ -428,7 +428,7 @@ with tab_apartments:
     total_NI = realized_NI+expected_NI
     NI_per_room =realized_NI/checked_in_count
 
-    today = pd.to_datetime(datetime.now().date())
+    today = pd.to_datetime(datetime.datetime.now().date())
 
 # 筛选未收到的单子
     unreceived_df = df_curr[df_curr['Received'] == False].copy()
