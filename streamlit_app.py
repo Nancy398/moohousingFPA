@@ -357,7 +357,7 @@ with tab_apartments:
     # 预测逻辑（针对当前选中的年份 df_curr）
     def apply_prediction(row):
         if row['Received'] == "TRUE":
-            return row['Received Date']
+            return row['Receive date']
         move_in = pd.to_datetime(row['入住时间'], errors='coerce')
         if pd.isna(move_in): return None
         avg_days = dso_map.get(row['Apartment'], global_avg)
