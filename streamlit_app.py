@@ -432,6 +432,7 @@ with tab_apartments:
 
 # 筛选未收到的单子
     unreceived_df = df_curr[df_curr['Received'] == "FALSE"].copy()
+    st.dataframe(unreceived_df)
     unreceived_df['Predicted_Date'] = pd.to_datetime(unreceived_df['Predicted_Date'])
     
     # A. 已逾期 (预测日期 < 今天)
@@ -440,6 +441,7 @@ with tab_apartments:
     
     # B. 未来待收 (预测日期 >= 今天)
     future_df = unreceived_df[unreceived_df['Predicted_Date'] >= today]
+    st.dataframe(future_df)
     future_amount = future_df['Commission'].sum()
     
 
