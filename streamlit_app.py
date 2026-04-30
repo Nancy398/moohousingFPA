@@ -334,12 +334,10 @@ with tab_apartments:
             df_all_history['Received Date'].notna()
         )
         history_paid = df_all_history[paid_mask].copy()
-        st.write(history_paid)
         
         # 4. 计算回款周期并剔除异常值（比如负数或超过一年的离群点）
         history_paid['days'] = (history_paid['Received Date'] - history_paid['Move-in Date']).dt.days
         # history_paid = history_paid[(history_paid['days'] > 0) & (history_paid['days'] < 365)]
-        st.write(history_paid)
         # 5. 生成公寓映射表和全局平均值
         dso_map = history_paid.groupby('Apartment')['days'].mean().to_dict()
         global_avg = history_paid['days'].mean() if not history_paid.empty else 45
@@ -351,8 +349,6 @@ with tab_apartments:
     
     # 获取基于全量数据的经验模型
     dso_map, global_avg = get_dynamic_dso([df_2025, df_2026])
-    st.write(dso_map)
-    st.write(global_avg)
     
     # 预测逻辑（针对当前选中的年份 df_curr）
     def apply_prediction(row):
@@ -432,6 +428,21 @@ with tab_apartments:
     total_NI = realized_NI+expected_NI
     NI_per_room =realized_NI/checked_in_count
 
+    today = pd.to_datetime(datetime.now().date())
+
+# 筛选未收到的单子
+    unreceived_df = df_curr[df_curr['Received'] == False].copy()
+    unreceived_df['Predicted_Date'] = pd.to_datetime(unreceived_df['Predicted_Date'])
+    
+    # A. 已逾期 (预测日期 < 今天)
+    overdue_df = unreceived_df[unreceived_df['Predicted_Date'] < today]
+    overdue_amount = overdue_df['Commission'].sum()
+    
+    # B. 未来待收 (预测日期 >= 今天)
+    future_df = unreceived_df[unreceived_df['Predicted_Date'] >= today]
+    future_amount = future_df['Commission'].sum()
+    
+
 # --- 2. 从 df_expense 计算指标 ---
     col1, col2,col3,col4 = st.columns(4)
     col1.metric("已入住总数", f"{int(checked_in_count)}")
@@ -454,7 +465,16 @@ with tab_apartments:
     col2.metric("Expected Net Income", f"${expected_NI:,.2f}")
     col3.metric("Total Net Income - Estimated", f"${total_NI:,.2f}")
     col4.metric("Net Income per room", f"${NI_per_room:,.2f}")
-    st.markdown("### 🏘️ Pending Received by Apartment")
+
+    future_df['Month'] = future_df['Predicted_Date'].dt.strftime('%Y-%m')
+    monthly_forecast = future_df.groupby('Month')['Commission'].sum().reset_index()
+    if not monthly_forecast.empty:
+        st.bar_chart(data=monthly_forecast, x='Month', y='Commission')
+        st.caption("注：以上基于历史平均回款周期预测。")
+    else:
+        st.info("暂无未来现金流预测数据。")
+        
+        st.markdown("### 🏘️ Pending Received by Apartment")
     
     if count_unreceived > 0:
         apt_summary = df_unreceived.groupby('Apartment').agg(
