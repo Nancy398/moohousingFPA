@@ -9,6 +9,7 @@ from google.oauth2.service_account import Credentials
 import gspread
 import datetime
 from gspread_dataframe import set_with_dataframe
+from dateutil.relativedelta import relativedelta
 
 st.set_page_config(page_title="Property Strategy", layout="wide")
 tab_overview, tab_apartments = st.tabs(["📊 Property Overview", "🏢 Apartments"])
@@ -462,7 +463,7 @@ with tab_apartments:
     col3.metric("Total Net Income - Estimated", f"${total_NI:,.2f}")
     col4.metric("Net Income per room", f"${NI_per_room:,.2f}")
 
-    now = datetime.now()
+    now = datetime.datetime.now()
     today = pd.to_datetime(now.date())
     # 获取下个月的第一天，并格式化为 YYYY-MM
     next_month_str = (now + relativedelta(months=1)).strftime('%Y-%m')
