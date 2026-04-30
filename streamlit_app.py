@@ -403,8 +403,8 @@ with tab_apartments:
             column_config={
                 "Apartment": "Apartment Name",
                 "Count": "Total Records",
-                "Pending_Received": st.column_config.NumberColumn("Pending Total", format="$%.2f"),
-                "Unknown": st.column_config.NumberColumn("Missing Info", format="%d ⚠️")
+                "Pending_Received": st.column_config.NumberColumn("Pending Total", format="$%,.2f"),
+                "Unknown": st.column_config.NumberColumn("Missing Info", format="%d")
             },
             hide_index=True,
             use_container_width=True
