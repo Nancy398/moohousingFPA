@@ -336,11 +336,12 @@ with tab_apartments:
             df_all_history['Received Date'].notna()
         )
         history_paid = df_all_history[paid_mask].copy()
+        st.write(history_paid)
         
         # 4. 计算回款周期并剔除异常值（比如负数或超过一年的离群点）
         history_paid['days'] = (history_paid['Received Date'] - history_paid['Move-in Date']).dt.days
         # history_paid = history_paid[(history_paid['days'] > 0) & (history_paid['days'] < 365)]
-        
+        st.write(history_paid)
         # 5. 生成公寓映射表和全局平均值
         dso_map = history_paid.groupby('Apartment')['days'].mean().to_dict()
         global_avg = history_paid['days'].mean() if not history_paid.empty else 45
