@@ -331,7 +331,7 @@ with tab_apartments:
         st.write(df_all_history)
         # 3. 筛选已回款的“成功案例”
         paid_mask = (
-            (df_all_history['Received'] == True) & 
+            (df_all_history['Received'] == "TRUE") & 
             df_all_history['Move-in Date'].notna() & 
             df_all_history['Received Date'].notna()
         )
