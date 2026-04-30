@@ -385,7 +385,7 @@ with tab_apartments:
     realized_NI = total_received_commission - total_expense - paid_comm_curr - payroll_pending_received_val*0.15
     expected_NI = expect_commission * 0.85
     total_NI = realized_NI+expected_NI
-    NI_per_room =total_NI/checked_in_count
+    NI_per_room =realized_NI/checked_in_count
 
 # --- 2. 从 df_expense 计算指标 ---
     col1, col2,col3,col4 = st.columns(4)
