@@ -378,17 +378,7 @@ with tab_apartments:
     col1, col2,col3,col4 = st.columns(4)
     col1.metric("已入住总数", f"{int(checked_in_count)}")
     col2.metric("已收commission总数", f"{int(received_count)}")
-    with col3:
-    # 使用 popover 包装指标，点击按钮即可弹出详情
-        st.metric("Pending Received记录数 (已入住)", f"{count_unreceived}")
-        with st.popover(f"Click to see the details"):
-            st.markdown("### 🏘️ 按公寓分组明细")
-            if count_unreceived > 0:
-                # 统计每个公寓的数量
-                apt_summary = df_unreceived.groupby('Apartment').size().reset_index(name='数量')
-                st.table(apt_summary) # 简单的表格展示预览
-            else:
-                st.write("目前没有待收记录。")
+    col3.metric("Pending Received记录数 (已入住)", f"{count_unreceived}")
     col4.metric("Already received", f"${total_received_commission:,.2f}")
 
     col1, col2,col3,col4 = st.columns(4)
@@ -397,7 +387,20 @@ with tab_apartments:
         st.caption(f"With received commission **${payroll_paid_val:,.2f}**")
     col2.metric("Other Expense", f"${total_expense:,.2f}")
     col3.metric("Expected Commission to be Received", f"${expect_commission:,.2f}")
-    col4.metric("Unknown Status", f"${int(unknown_commssion)}")
+    col4.metric("Unknown Status", f"{int(unknown_commssion)}")
+
+    st.markdown("### 🏘️ Pending Received by Apartment")
+    if count_unreceived > 0:
+        # 统计每个公寓的数量
+        apt_summary = df_unreceived.groupby('Apartment').agg(
+            
+            数量=('Apartment', 'size'),                  # 统计行数
+            Pending Received =('Commission', 'sum'),           # 统计 Commission 的总和
+            Unknown =('Commission', lambda x: (x == 0).sum()) 
+        ).reset_index()
+        st.table(apt_summary) # 简单的表格展示预览
+    else:
+        st.write("目前没有待收记录。")
 
     
     
