@@ -328,7 +328,7 @@ with tab_apartments:
     st.title(f"📊 {select_year} Apartments Analysis")
     st.divider()
     
-    df_curr = read_file("Apartment Referral List",select_year,header_row=1)
+    df_curr = read_file("Apartment Referral List",str(selected_year),header_row=1)
     df_expense = read_file("Apartments FA","Expense")
     df_curr['Received Commission'] = (
         df_curr['Received Commission']
