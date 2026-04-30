@@ -355,18 +355,13 @@ with tab_apartments:
     st.write(global_avg)
     
     # 预测逻辑（针对当前选中的年份 df_curr）
-    # def apply_prediction(row):
-    #     if row['Received'] == True:
-    #         return row['Received Date']
-        
-    #     move_in = pd.to_datetime(row['Move-in Date'], errors='coerce')
-    #     if pd.isna(move_in): return None
-        
-    #     # 优先查该公寓历史，没有则用全局平均
-    #     avg_days = dso_map.get(row['Apartment'], global_avg)
-    #     return move_in + pd.Timedelta(days=int(avg_days))
-    
-    # df_curr['Predicted_Date'] = df_curr.apply(apply_prediction, axis=1)
+    def apply_prediction(row):
+        if row['Received'] == "TRUE":
+            return row['Received Date']
+        move_in = pd.to_datetime(row['入住时间'], errors='coerce')
+        if pd.isna(move_in): return None
+        avg_days = dso_map.get(row['Apartment'], global_avg)
+        return move_in + pd.Timedelta(days=int(avg_days))
     with st.container():
         select_year = st.segmented_control(
             "选择年份",
@@ -412,9 +407,10 @@ with tab_apartments:
     df_curr['Received Commission'] = pd.to_numeric(df_curr['Received Commission'], errors='coerce').fillna(0)
     df_curr['Bonus to resident'] = pd.to_numeric(df_curr['Bonus to resident'], errors='coerce').fillna(0)
     df_curr['Commission'] = pd.to_numeric(df_curr['Commission'], errors='coerce').fillna(0)
+    df_curr['Predicted_Date'] = df_curr.apply(apply_prediction, axis=1)
     df_expense['Commission'] = pd.to_numeric(df_expense['Commission'], errors='coerce').fillna(0)
     df_expense['Expense'] = pd.to_numeric(df_expense['Expense'], errors='coerce').fillna(0)
-    # st.dataframe(df_expense)
+    st.dataframe(df_curr)
     mask_unreceived = (df_curr['状态'] == '已入住')& (df_curr['Received'] == 'FALSE')
     df_unreceived = df_curr[mask_unreceived]
     count_unreceived = len(df_unreceived)
