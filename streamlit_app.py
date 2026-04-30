@@ -317,13 +317,14 @@ with tab_apartments:
         # 4. 去掉全为空的行
         df = df.dropna(how='all').reset_index(drop=True)
         return df
+        
     with st.container():
-    select_year = st.segmented_control(
-        "选择年份",
-        options=[2025, 2026],
-        default=2026,  # 默认高亮 2026
-        label_visibility="collapsed" # 隐藏多余标签
-    )
+        select_year = st.segmented_control(
+            "选择年份",
+            options=[2025, 2026],
+            default=2026,  # 默认高亮 2026
+            label_visibility="collapsed" # 隐藏多余标签
+        )
     st.title(f"📊 {select_year} Apartments Analysis")
     st.divider()
     
