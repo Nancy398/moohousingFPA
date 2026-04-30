@@ -407,7 +407,6 @@ with tab_apartments:
     df_curr['Predicted_Date'] = df_curr.apply(apply_prediction, axis=1)
     df_expense['Commission'] = pd.to_numeric(df_expense['Commission'], errors='coerce').fillna(0)
     df_expense['Expense'] = pd.to_numeric(df_expense['Expense'], errors='coerce').fillna(0)
-    st.dataframe(df_curr)
     mask_unreceived = (df_curr['状态'] == '已入住')& (df_curr['Received'] == 'FALSE')
     df_unreceived = df_curr[mask_unreceived]
     count_unreceived = len(df_unreceived)
@@ -503,7 +502,7 @@ with tab_apartments:
             # 自定义颜色：逾期用醒目的深橙/红，正常用蓝色
             color_discrete_map={
                 "⚠️ Slower than Expected": "#F8A1A1", 
-                "📅 Future Expected": "#A7D8F5"
+                "📅 Future Expected": "#B0C4DE"
             },
             text_auto='.2s',
             title=f"📅 Cash Flow Prediction",
