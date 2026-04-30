@@ -385,6 +385,7 @@ with tab_apartments:
     realized_NI = total_received_commission - total_expense - paid_comm_curr - payroll_pending_received_val*0.15
     expected_NI = expect_commission * 0.85
     total_NI = realized_NI+expected_NI
+    NI_per_room =total_NI/checked_in_count
 
 # --- 2. 从 df_expense 计算指标 ---
     col1, col2,col3,col4 = st.columns(4)
@@ -407,8 +408,9 @@ with tab_apartments:
         st.caption(f"With Unpaid commission **${payroll_pending_received_val*0.15:,.2f}**")
     col2.metric("Expected Net Income", f"${expected_NI:,.2f}")
     col3.metric("Total Net Income - Estimated", f"${total_NI:,.2f}")
-    
+    col4.metric("Net Income per room", f"${NI_per_room:,.2f}")
     st.markdown("### 🏘️ Pending Received by Apartment")
+    
     if count_unreceived > 0:
         apt_summary = df_unreceived.groupby('Apartment').agg(
             Count=('Apartment', 'size'),                  # 统计行数
