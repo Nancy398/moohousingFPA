@@ -468,17 +468,17 @@ with tab_apartments:
     # 获取下个月的第一天，并格式化为 YYYY-MM
     next_month_str = (now + relativedelta(months=1)).strftime('%Y-%m')
     def classify_forecast(row):
-    if row['Received'] == True:
-        return None, None
+        if row['Received'] == "TRUE":
+            return None, None
     
-    pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
-    
-    # 如果已逾期
-    if pd.isna(pred_date) or pred_date < today:
-        return next_month_str, "⚠️ Overdue (逾期顺延)"
-    else:
-        # 正常未来款项
-        return pred_date.strftime('%Y-%m'), "📅 Future (正常预期)"
+        pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
+        
+        # 如果已逾期
+        if pd.isna(pred_date) or pred_date < today:
+            return next_month_str, "⚠️ Overdue (逾期顺延)"
+        else:
+            # 正常未来款项
+            return pred_date.strftime('%Y-%m'), "📅 Future (正常预期)"
 
 # 应用函数生成两个新列
     df_curr[['Forecast_Month', 'Category']] = df_curr.apply(
