@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
-# import plotly.graph_objects as go 
+import plotly.graph_objects as go 
 import plotly.express as px
 # from datetime import datetime, timedelta
 from google.oauth2.service_account import Credentials
@@ -462,16 +462,57 @@ with tab_apartments:
     col3.metric("Total Net Income - Estimated", f"${total_NI:,.2f}")
     col4.metric("Net Income per room", f"${NI_per_room:,.2f}")
 
-    unreceived_df['Month'] = unreceived_df['Predicted_Date'].dt.strftime('%Y-%m')
-    monthly_forecast = unreceived_df.groupby('Month')['Commission'].sum().reset_index()
-    st.dataframe(monthly_forecast)
+    now = datetime.now()
+    today = pd.to_datetime(now.date())
+    # 获取下个月的第一天，并格式化为 YYYY-MM
+    next_month_str = (now + relativedelta(months=1)).strftime('%Y-%m')
+    df_pred = df_curr[df_curr['Received'] == "FALSE"].copy()
+    df_pred['Predicted_Date'] = pd.to_datetime(df_pred['Predicted_Date'], errors='coerce')
+
+    def assign_forecast_month(row):
+        if pd.isna(row['Predicted_Date']):
+            return next_month_str # 缺失日期的也暂且放到下个月
+        
+        # 如果预测日期已经过了今天（逾期），统统归到下个月
+        if row['Predicted_Date'] < today:
+            return next_month_str
+        else:
+            # 没到期的，按原定月份
+            return row['Predicted_Date'].strftime('%Y-%m')
+    
+    df_pred['Forecast_Month'] = df_pred.apply(assign_forecast_month, axis=1)
+    
+    # 3. 聚合数据
+    monthly_data = df_pred.groupby('Forecast_Month')['Commission'].sum().reset_index()
+    
+    # 4. 绘图
+    if not monthly_data.empty:
+        # 排序确保月份连续
+        monthly_data = monthly_data.sort_values('Forecast_Month')
+        
+        fig = px.bar(
+            monthly_data,
+            x='Forecast_Month',
+            y='Commission',
+            text_auto='.2s',
+            title=f"📅 未来现金流分布预期 (逾期款项已顺延至 {next_month_str})",
+            labels={'Forecast_Month': '预计到账月份', 'Commission': '金额 ($)'}
+        )
+        
+        # 这里的颜色可以整齐统一，不再区分红蓝，因为逻辑上它们现在都是“未来”
+        fig.update_traces(marker_color='#636EFA', textposition='outside', cliponaxis=False)
+        fig.update_layout(height=450, margin=dict(t=50, b=20, l=20, r=20))
+        
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("目前没有待回款项。")
     if not monthly_forecast.empty:
         st.bar_chart(data=monthly_forecast, x='Month', y='Commission')
         st.caption("注：以上基于历史平均回款周期预测。")
     else:
         st.info("暂无未来现金流预测数据。")
         
-        st.markdown("### 🏘️ Pending Received by Apartment")
+    st.markdown("### 🏘️ Pending Received by Apartment")
     
     if count_unreceived > 0:
         apt_summary = df_unreceived.groupby('Apartment').agg(
