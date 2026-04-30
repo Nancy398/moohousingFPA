@@ -474,10 +474,10 @@ with tab_apartments:
         
         # 如果已逾期
         if pd.isna(pred_date) or pred_date < today:
-            return next_month_str, "⚠️ Overdue (逾期顺延)"
+            return next_month_str, "⚠️ Slower than Expected"
         else:
             # 正常未来款项
-            return pred_date.strftime('%Y-%m'), "📅 Future (正常预期)"
+            return pred_date.strftime('%Y-%m'), "📅 Future Expected"
 
 # 应用函数生成两个新列
     df_curr[['Forecast_Month', 'Category']] = df_curr.apply(
