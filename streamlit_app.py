@@ -317,7 +317,57 @@ with tab_apartments:
         # 4. 去掉全为空的行
         df = df.dropna(how='all').reset_index(drop=True)
         return df
+
+    def get_dynamic_dso(df_list):
+        """
+        df_list: 包含所有年份 DataFrame 的列表，例如 [df_2025, df_2026]
+        """
+        # 1. 合并所有历史数据
+        df_all_history = pd.concat(df_list, ignore_index=True)
         
+        # 2. 清洗日期格式
+        df_all_history['Move-in Date'] = pd.to_datetime(df_all_history['入住时间'], errors='coerce')
+        df_all_history['Received Date'] = pd.to_datetime(df_all_history['Received Date'], errors='coerce')
+        
+        # 3. 筛选已回款的“成功案例”
+        paid_mask = (
+            (df_all_history['Received'] == True) & 
+            df_all_history['Move-in Date'].notna() & 
+            df_all_history['Received Date'].notna()
+        )
+        history_paid = df_all_history[paid_mask].copy()
+        
+        # 4. 计算回款周期并剔除异常值（比如负数或超过一年的离群点）
+        history_paid['days'] = (history_paid['Received Date'] - history_paid['Move-in Date']).dt.days
+        # history_paid = history_paid[(history_paid['days'] > 0) & (history_paid['days'] < 365)]
+        
+        # 5. 生成公寓映射表和全局平均值
+        dso_map = history_paid.groupby('Apartment')['days'].mean().to_dict()
+        global_avg = history_paid['days'].mean() if not history_paid.empty else 45
+        
+        return dso_map, global_avg
+    # 同时读取两年数据
+    df_2025 = read_file("Apartment Referral List", "2025", header_row=1)
+    df_2026 = read_file("Apartment Referral List", "2026", header_row=1)
+    
+    # 获取基于全量数据的经验模型
+    dso_map, global_avg = get_dynamic_dso([df_2025, df_2026])
+    st.write(dso_map)
+    st.write(global_avg)
+    
+    # 预测逻辑（针对当前选中的年份 df_curr）
+    # def apply_prediction(row):
+    #     if row['Received'] == True:
+    #         return row['Received Date']
+        
+    #     move_in = pd.to_datetime(row['Move-in Date'], errors='coerce')
+    #     if pd.isna(move_in): return None
+        
+    #     # 优先查该公寓历史，没有则用全局平均
+    #     avg_days = dso_map.get(row['Apartment'], global_avg)
+    #     return move_in + pd.Timedelta(days=int(avg_days))
+    
+    # df_curr['Predicted_Date'] = df_curr.apply(apply_prediction, axis=1)
     with st.container():
         select_year = st.segmented_control(
             "选择年份",
