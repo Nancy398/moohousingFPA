@@ -462,7 +462,7 @@ with tab_apartments:
     col2.metric("Expected Net Income", f"${expected_NI:,.2f}")
     col3.metric("Total Net Income - Estimated", f"${total_NI:,.2f}")
     col4.metric("Net Income per room", f"${NI_per_room:,.2f}")
-
+    st.markdown("### 🏘️ Predicted Commission Cash In")
     now = datetime.datetime.now()
     today = pd.to_datetime(now.date())
     # 获取下个月的第一天，并格式化为 YYYY-MM
@@ -502,19 +502,19 @@ with tab_apartments:
             color='Category',
             # 自定义颜色：逾期用醒目的深橙/红，正常用蓝色
             color_discrete_map={
-                "⚠️ Overdue (逾期顺延)": "#FF4B4B", 
-                "📅 Future (正常预期)": "#1C83E1"
+                "⚠️ Slower than Expected": "#F8A1A1", 
+                "📅 Future Expected": "#A7D8F5"
             },
             text_auto='.2s',
-            title=f"📅 现金流构成预测 (逾期款已归入 {next_month_str})",
+            title=f"📅 Cash Flow Prediction",
             barmode='stack' # 确保是堆叠模式
         )
         
         fig.update_traces(textposition='inside') # 数字显示在柱子内部
         fig.update_layout(
-            xaxis_title="预计入账月份",
-            yaxis_title="金额 ($)",
-            legend_title="款项类型",
+            xaxis_title="Month",
+            yaxis_title="Amount ($)",
+            legend_title="Type",
             hovermode="x unified"
         )
         
