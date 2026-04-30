@@ -374,7 +374,7 @@ with tab_apartments:
     payroll_pending_received_val = df_curr[(df_curr['Payroll'] == 'FALSE') & (df_curr['Received'] == 'TRUE')]['Received Commission'].sum()
     paid_comm_curr = df_expense[(df_expense['Year'] == select_year)]['Commission'].sum()
     other_expense_curr = df_expense[(df_expense['Year'] == select_year)]['Expense'].sum()
-    bonus_residents_curr = df_curr.['Bonus to resident'].sum()
+    bonus_residents_curr = df_curr['Bonus to resident'].sum()
     total_expense = other_expense_curr + bonus_residents_curr
     checked_in_count = len(df_curr[df_curr['状态'] == '已入住'])
     received_count = checked_in_count-count_unreceived
