@@ -468,6 +468,7 @@ with tab_apartments:
 
     future_df['Month'] = future_df['Predicted_Date'].dt.strftime('%Y-%m')
     monthly_forecast = future_df.groupby('Month')['Commission'].sum().reset_index()
+    st.dataframe(monthly_forecast)
     if not monthly_forecast.empty:
         st.bar_chart(data=monthly_forecast, x='Month', y='Commission')
         st.caption("注：以上基于历史平均回款周期预测。")
