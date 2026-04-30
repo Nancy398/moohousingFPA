@@ -379,7 +379,7 @@ with tab_apartments:
     checked_in_count = len(df_curr[df_curr['状态'] == '已入住'])
     received_count = checked_in_count-count_unreceived
     expect_commission = df_curr.loc[df_curr['Received'] == 'FALSE', 'Commission'].sum()
-    mask_unknown = (df_curr['Received'] == 'FALSE') & (df_curr['Commission'] == 0)&(df_curr[df_curr['状态'] == '已入住'])
+    mask_unknown = (df_curr['Received'] == 'FALSE') & (df_curr['Commission'] == 0)&(df_curr['状态'] == '已入住')
     df_unknown = df_curr[mask_unknown]
     unknown_commssion = len(df_unknown)
     realized_NI = total_received_commission - total_expense - paid_comm_curr - payroll_pending_received_val*0.15
