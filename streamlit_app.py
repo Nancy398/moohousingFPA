@@ -586,7 +586,7 @@ with tab_apartments:
                 fig_line = px.line(
                     compare_df, x='Month', y='Commission_Clean', color='Year',
                     markers=True, 
-                    text=compare_df['Commission'].apply(lambda x: f'{x/1000:.1f}k' if x >= 1000 else f'{x:.0f}'),
+                    text=compare_df['Commission_Clean'].apply(lambda x: f'{x/1000:.1f}k' if x >= 1000 else f'{x:.0f}'),
                     labels={'Month': '月份', 'Commission_Clean': '已收金额 ($)'}
                 )
                 fig_line.update_traces(
