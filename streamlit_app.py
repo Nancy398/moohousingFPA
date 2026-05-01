@@ -696,7 +696,7 @@ with tab_apartments:
         else:
             st.success(f"🎉 恭喜！所有款项已结清，没有待收项目。")
                 
-    if st.session_state.view_mode == 'Comparason':   
+    if st.session_state.view_mode == 'Comparison':   
         st.divider()
     
     # 在对比模式下，增加一个维度选择器
