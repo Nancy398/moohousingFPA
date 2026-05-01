@@ -477,9 +477,9 @@ with tab_apartments:
         if row['Received'] == "TRUE":
             r_date = pd.to_datetime(row['Receive date'], errors='coerce')
             if pd.notna(r_date):
-                return r_date.strftime('%Y-%m'), "✅ Received (已入账)"
+                return r_date.strftime('%Y-%m'), "✅ Received"
             else:
-                return "Unknown", "✅ Received (已入账)"
+                return "Unknown", "✅ Received"
         row['Predicted_Date'] = apply_prediction(row)
         pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
         if pd.isna(pred_date) or pred_date < today:
