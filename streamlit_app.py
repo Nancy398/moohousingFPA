@@ -279,13 +279,6 @@ with tab_overview:
     
     # (可选) 展示该地块在同类中的表现
     st.bar_chart(type_df.set_index('Property ID')['Profit'])
-import streamlit as st
-import pandas as pd
-import gspread
-from google.oauth2.service_account import Credentials
-import datetime
-from dateutil.relativedelta import relativedelta
-import plotly.express as px
 
 # ==========================================
 # 1. 核心财务逻辑类 (FinancialModel)
@@ -408,6 +401,7 @@ with tab_apartments:
     
     # A. 加载原始数据
     df_2025 = read_file("Apartment Referral List", "2025", header_row=1)
+    st.dataframe(df_2025)
     df_2026 = read_file("Apartment Referral List", "2026", header_row=1)
     df_expense_raw = read_file("Apartments FA", "Expense")
     
