@@ -503,7 +503,6 @@ with tab_apartments:
     plot_df[['Forecast_Month', 'Category']] = plot_df.apply(
         lambda x: pd.Series(classify_full_status(x)), axis=1
     )
-    st.dataframe(plot_df)
     # 3. 过滤掉无法识别月份的数据
     plot_df = plot_df[plot_df['Forecast_Month'] != "Unknown"]
     
