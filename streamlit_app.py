@@ -486,12 +486,10 @@ with tab_apartments:
                 return "Unknown", "✅ Received"
         row['Predicted_Date'] = apply_prediction(row)
         pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
-        
         if pd.isna(pred_date) or pred_date < today:
             # 已逾期：归入下个月
             return next_month_str, "⚠️ Slower than Expected"
         else:
-            # 正常未来预期
             return pred_date.strftime('%Y-%m'), "📅 Future Expected"
     
     filter_year = str(select_year) if not show_total else None
@@ -501,7 +499,7 @@ with tab_apartments:
     plot_df[['Forecast_Month', 'Category']] = plot_df.apply(
         lambda x: pd.Series(classify_full_status(x)), axis=1
     )
-    
+    st.dataframe(plot_df)
     # 3. 过滤掉无法识别月份的数据
     plot_df = plot_df[plot_df['Forecast_Month'] != "Unknown"]
     
@@ -581,6 +579,6 @@ with tab_apartments:
         st.caption(f"☝️ 以上公寓共有 **{len(apt_summary)}** 处待收，总计金额约 **${total_p:,.0f}**")
     
     else:
-        st.success(f"🎉 恭喜！{display_title} 所有款项已结清，没有待收项目。")
+        st.success(f"🎉 恭喜！所有款项已结清，没有待收项目。")
             
         
