@@ -484,6 +484,7 @@ with tab_apartments:
                 return r_date.strftime('%Y-%m'), "✅ Received (已入账)"
             else:
                 return "Unknown", "✅ Received (已入账)"
+    
     plot_df = model.df_curr.copy()
 
     # 应用分类逻辑
@@ -537,17 +538,6 @@ with tab_apartments:
     else:
         st.info("💡 目前没有任何数据可以展示。")
 
-    # 2. 处理【未入账】的数据
-    # 先计算预测日期
-    row['Predicted_Date'] = apply_prediction(row)
-    pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
-    
-    if pd.isna(pred_date) or pred_date < today:
-        # 已逾期：归入下个月
-        return next_month_str, "⚠️ Slower than Expected"
-    else:
-        # 正常未来预期
-        return pred_date.strftime('%Y-%m'), "📅 Future Expected"
     
     # G. 公寓明细表
     st.markdown("### 🏘️ Pending Received by Apartment")
