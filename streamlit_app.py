@@ -358,15 +358,23 @@ with tab_apartments:
     # ==========================================
     @st.cache_data(ttl=300)
     def read_file(name, sheet, header_row=0):
+        """
+        header_row: 表头所在的行索引（0 代表第 1 行，1 代表第 2 行，依此类推）
+        """
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        credentials = Credentials.from_service_account_info(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"], scopes=scope)
+        credentials = Credentials.from_service_account_info(
+            st.secrets["GOOGLE_APPLICATION_CREDENTIALS"], 
+            scopes=scope
+        )
         gc = gspread.authorize(credentials)
         worksheet = gc.open(name).worksheet(sheet)
-        rows = worksheet.get_all_values()
+        rows = worksheet.get_all_values() 
         raw_df = pd.DataFrame(rows)
-        if raw_df.empty: return raw_df
-        
+        if raw_df.empty:
+            return raw_df
+        # 1. 根据传入的 header_row 动态提取表头
         new_header = raw_df.iloc[header_row].str.strip().tolist()
+        # 2. 核心修复：处理重复或空列名（逻辑保持不变）
         final_header = []
         counts = {}
         for i, col in enumerate(new_header):
@@ -377,9 +385,11 @@ with tab_apartments:
             else:
                 counts[name_val] = 0
                 final_header.append(name_val)
-                
-        df = pd.DataFrame(raw_df.values[header_row + 1:], columns=final_header)
-        return df.dropna(how='all').reset_index(drop=True)
+        # 3. 动态切片：数据从 header_row 的下一行开始取
+        df = pd.DataFrame(raw_df.values[header_row + 1:], columns=final_header)            
+        # 4. 去掉全为空的行
+        df = df.dropna(how='all').reset_index(drop=True)
+        return df
     
     def get_dynamic_dso(df_list):
         df_all_history = pd.concat(df_list, ignore_index=True)
