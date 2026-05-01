@@ -546,13 +546,10 @@ with tab_apartments:
         plot_df = get_processed_df(df_all_data)
         st.dataframe(plot_df)
         plot_df['Temp_Date'] = pd.to_datetime(plot_df['Forecast_Month'] + "-01")
-        
-        # 过滤时间：当前月往前推 11 个月 + 当前月
         one_year_ago = today.replace(day=1) - relativedelta(months=11)
         standard_df = plot_df[(plot_df['Temp_Date'] >= one_year_ago) & (plot_df['Temp_Date'] <= today.replace(day=1))]
-        
         plot_data = standard_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
-        
+        st.dataframe(plot_data)
         fig = px.bar(
             plot_data, x='Forecast_Month', y='Commission', color='Category',
             color_discrete_map={"✅ Received": "#A2D9A2", "📅 Future Expected": "#AED6F1", "⚠️ Slower than Expected": "#F5B7B1"},
