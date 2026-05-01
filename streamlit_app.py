@@ -360,14 +360,24 @@ with tab_apartments:
         avg_days = dso_map.get(row['Apartment'], global_avg)
         return move_in + pd.Timedelta(days=int(avg_days))
     with st.container():
-        select_year = st.segmented_control(
-            "选择年份",
-            options=[2025, 2026],
-            default=2026,  # 默认高亮 2026
+        # 创建两列，第一列放年份（占大部分空间），第二列放 Total 开关
+        col_left, col_right = st.columns([0.8, 0.2], vertical_alignment="bottom")
+    
+        with col_left:
+            select_year = st.segmented_control(
+                "选择年份",
+                options=[2025, 2026],
+                default=2026,
+                label_visibility="collapsed"
+            )
+    
+        with col_right:
+            # 使用 toggle 开关，看起来更像一个独立的全局设置
+            show_total = st.toggle("Show Total", value=False)
             label_visibility="collapsed" # 隐藏多余标签
-        )
-    st.title(f"📊 {select_year} Apartments Analysis")
-    st.divider()
+            )
+    
+
     select_year = str(select_year)
     df_curr = read_file("Apartment Referral List",select_year,header_row=1)
     df_expense = read_file("Apartments FA","Expense")
@@ -431,14 +441,13 @@ with tab_apartments:
     today = pd.to_datetime(datetime.datetime.now().date())
 
 # 筛选未收到的单子
-    unreceived_df = df_curr[df_curr['Received'] == "FALSE"].copy()
+    df_all = pd.concat([df_2025,df_2026], ignore_index=True)
+    st.dataframe(df_all)
+    unreceived_df = df_all[df_all['Received'] == "FALSE"].copy()
     unreceived_df['Predicted_Date'] = pd.to_datetime(unreceived_df['Predicted_Date'])
-    overdue_df = unreceived_df[unreceived_df['Predicted_Date'] < today]
-    overdue_amount = overdue_df['Commission'].sum()
-    future_df = unreceived_df[unreceived_df['Predicted_Date'] >= today]
-    future_amount = future_df['Commission'].sum()
     
-
+    st.title(f"📊 {select_year} Apartments Analysis")
+    st.divider()
 # --- 2. 从 df_expense 计算指标 ---
     col1, col2,col3,col4 = st.columns(4)
     col1.metric("已入住总数", f"{int(checked_in_count)}")
@@ -480,12 +489,12 @@ with tab_apartments:
             return pred_date.strftime('%Y-%m'), "📅 Future Expected"
 
 # 应用函数生成两个新列
-    df_curr[['Forecast_Month', 'Category']] = df_curr.apply(
+    unreceived_df[['Forecast_Month', 'Category']] = unreceived_df.apply(
         lambda x: pd.Series(classify_forecast(x)), axis=1
     )
     
     # 3. 聚合数据用于绘图
-    plot_data = df_curr[df_curr['Forecast_Month'].notna()].groupby(
+    plot_data = unreceived_df[unreceived_df['Forecast_Month'].notna()].groupby(
         ['Forecast_Month', 'Category']
     )['Commission'].sum().reset_index()
     
@@ -504,7 +513,7 @@ with tab_apartments:
                 "⚠️ Slower than Expected": "#F8A1A1", 
                 "📅 Future Expected": "#B0C4DE"
             },
-            text_auto='.2s',
+            text_auto=',.0f',
             barmode='stack' # 确保是堆叠模式
         )
         
