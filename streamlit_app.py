@@ -484,6 +484,15 @@ with tab_apartments:
                 return r_date.strftime('%Y-%m'), "✅ Received (已入账)"
             else:
                 return "Unknown", "✅ Received (已入账)"
+        row['Predicted_Date'] = apply_prediction(row)
+        pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
+        
+        if pd.isna(pred_date) or pred_date < today:
+            # 已逾期：归入下个月
+            return next_month_str, "⚠️ Slower than Expected"
+        else:
+            # 正常未来预期
+            return pred_date.strftime('%Y-%m'), "📅 Future Expected"
     
     plot_df = model.df_curr.copy()
 
