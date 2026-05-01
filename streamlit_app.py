@@ -471,36 +471,83 @@ with tab_apartments:
     m4.metric("NI per Room", f"${model.NI_per_room:,.2f}")
     
     # F. 现金流预测图表
-    st.markdown("### 🏘️ Predicted Commission Cash In (Monthly)")
+    st.markdown("### 🏘️ Commission Cash In Map(Monthly)")
     
     now = datetime.datetime.now()
     today = pd.to_datetime(now.date())
     next_month_str = (now + relativedelta(months=1)).strftime('%Y-%m')
+    def classify_full_status(row):
+        if row['Received'] == "TRUE":
+            # 优先使用 Receive date，如果没有则转为 pd.NaT
+            r_date = pd.to_datetime(row['Receive date'], errors='coerce')
+            if pd.notna(r_date):
+                return r_date.strftime('%Y-%m'), "✅ Received (已入账)"
+            else:
+                return "Unknown", "✅ Received (已入账)"
+    plot_df = model.df_curr.copy()
+
+    # 应用分类逻辑
+    plot_df[['Forecast_Month', 'Category']] = plot_df.apply(
+        lambda x: pd.Series(classify_full_status(x)), axis=1
+    )
     
-    def classify_forecast(row):
-        if row['Received'] == "TRUE": return None, None
-        row['Predicted_Date'] = apply_prediction(row)
-        pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
-        if pd.isna(pred_date) or pred_date < today:
-            return next_month_str, "⚠️ Slower than Expected"
-        return pred_date.strftime('%Y-%m'), "📅 Future Expected"
+    # 过滤掉无法识别月份的数据（如果有的话）
+    plot_df = plot_df[plot_df['Forecast_Month'] != "Unknown"]
     
-    unreceived_df = model.df_curr[model.df_curr['Received'] == "FALSE"].copy()
-    if not unreceived_df.empty:
-        unreceived_df[['Forecast_Month', 'Category']] = unreceived_df.apply(lambda x: pd.Series(classify_forecast(x)), axis=1)
-        plot_data = unreceived_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
+    if not plot_df.empty:
+        # 分组聚合金额
+        plot_data = plot_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
+        
+        # 排序：确保月份有序，且类别按 Received -> Future -> Slower 堆叠
         plot_data = plot_data.sort_values(['Forecast_Month', 'Category'])
     
+        # 绘制图表
         fig = px.bar(
-            plot_data, x='Forecast_Month', y='Commission', color='Category',
-            color_discrete_map={"⚠️ Slower than Expected": "#F5B7B1", "📅 Future Expected": "#AED6F1"},
-            text_auto=',.0f', barmode='stack'
+            plot_data, 
+            x='Forecast_Month', 
+            y='Commission', 
+            color='Category',
+            # 增加一个绿色的配色方案
+            color_discrete_map={
+                "✅ Received": "#A2D9A2",     # 淡雅绿
+                "📅 Future Expected": "#AED6F1",      # 浅蓝色
+                "⚠️ Slower than Expected": "#F5B7B1"  # 浅红色
+            },
+            text_auto=',.0f', 
+            barmode='stack',
+            # title=f"📊 年度佣金回款进度全景图 (含已入账 & 预测)"
         )
-        fig.update_traces(textposition='inside', textfont=dict(color="black"))
-        fig.update_layout(xaxis_title="Predicted Month", yaxis_title="Commission Amount ($)", legend_title="Status", hovermode="x unified")
+    
+        # 优化 UI
+        fig.update_traces(
+            textposition='inside', 
+            textfont=dict(color="black", size=10),
+            insidetextanchor='middle'
+        )
+        
+        fig.update_layout(
+            xaxis_title="Month",
+            yaxis_title="Total Commission Amount ($)",
+            legend_title="Payment Status",
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("💡 No pending commissions for this period.")
+        st.info("💡 目前没有任何数据可以展示。")
+
+    # 2. 处理【未入账】的数据
+    # 先计算预测日期
+    row['Predicted_Date'] = apply_prediction(row)
+    pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
+    
+    if pd.isna(pred_date) or pred_date < today:
+        # 已逾期：归入下个月
+        return next_month_str, "⚠️ Slower than Expected"
+    else:
+        # 正常未来预期
+        return pred_date.strftime('%Y-%m'), "📅 Future Expected"
     
     # G. 公寓明细表
     st.markdown("### 🏘️ Pending Received by Apartment")
