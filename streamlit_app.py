@@ -434,6 +434,14 @@ with tab_apartments:
 # 筛选未收到的单子
     df_all = pd.concat([df_2025,df_2026], ignore_index=True)
     df_all['Predicted_Date'] = df_all.apply(apply_prediction, axis=1)
+    df_all['Commission'] = (
+        df_all['Commission']
+        .astype(str)
+        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
+        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
+    )
+    df_all['Commission'] = pd.to_numeric(df_all['Commission'], errors='coerce').fillna(0)
+    
     st.dataframe(df_all)
     unreceived_df = df_all[df_all['Received'] == "FALSE"].copy()
     unreceived_df['Predicted_Date'] = pd.to_datetime(unreceived_df['Predicted_Date'])
