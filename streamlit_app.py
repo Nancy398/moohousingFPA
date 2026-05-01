@@ -440,6 +440,11 @@ with tab_apartments:
         title_label = "All-Time History"
         st.session_state.view_mode = 'Standard'
     elif comparison_mode:
+        selected_years = st.multiselect(
+                "选择对比年份", 
+                options=[2025, 2026], 
+                default=[2025, 2026]
+            )
         if not selected_years:
             st.warning("At Least Select One.")
             st.stop()
