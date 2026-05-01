@@ -489,7 +489,6 @@ with tab_apartments:
             return pred_date.strftime('%Y-%m'), "📅 Future Expected"
 
     st.markdown("### 🏘️ Commission Cash In Map(Monthly)")
-    st.subheader("🛠️ 看板模式选择")
     col_btn1, col_btn2, col_btn3 = st.columns(3) 
     if 'view_mode' not in st.session_state:
         st.session_state.view_mode = 'Standard'
@@ -509,10 +508,24 @@ with tab_apartments:
     now = datetime.datetime.now()
     today = pd.to_datetime(now.date())
     next_month_str = (now + relativedelta(months=1)).strftime('%Y-%m')
-    
-    # 读取所有涉及到的年份 (假设我们有 2025, 2026)
     df_2025 = read_file("Apartment Referral List", "2025", header_row=1)
     df_2026 = read_file("Apartment Referral List", "2026", header_row=1)
+    df_2025['Commission'] = (
+        df_2025['Commission']
+        .astype(str)
+        .str.replace('¥', '')
+        .str.replace(',', '')
+        .str.strip()
+    )
+    df_2025['Commission'] = pd.to_numeric(df_2025['Commission'], errors='coerce').fillna(0)
+    df_2026['Commission'] = (
+        df_2026['Commission']
+        .astype(str)
+        .str.replace('¥', '')
+        .str.replace(',', '')
+        .str.strip()
+    )
+    df_2026['Commission'] = pd.to_numeric(df_2026['Commission'], errors='coerce').fillna(0)
     # 合并全量数据用于处理
     df_all_data = pd.concat([df_2025, df_2026], ignore_index=True)
     
