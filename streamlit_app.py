@@ -483,7 +483,6 @@ with tab_apartments:
         row['Predicted_Date'] = apply_prediction(row)
         pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
         if pd.isna(pred_date) or pred_date < today:
-            # 已逾期：归入下个月
             return next_month_str, "⚠️ Slower than Expected"
         else:
             return pred_date.strftime('%Y-%m'), "📅 Future Expected"
@@ -544,8 +543,8 @@ with tab_apartments:
     # 模式 A: Standard (近 12 个月滚动)
     # ==========================================
     if st.session_state.view_mode == 'Standard':
-        st.markdown("### 📅 近 12 个月佣金回款趋势")
         plot_df = get_processed_df(df_all_data)
+        st.dataframe(plot_df)
         plot_df['Temp_Date'] = pd.to_datetime(plot_df['Forecast_Month'] + "-01")
         
         # 过滤时间：当前月往前推 11 个月 + 当前月
