@@ -472,83 +472,149 @@ with tab_apartments:
     m2.metric("Expected Net Income", f"${model.expected_NI:,.2f}")
     m3.metric("Estimated Total NI", f"${model.total_NI:,.2f}")
     m4.metric("NI per Room", f"${model.NI_per_room:,.2f}")
-    
-    # F. 现金流预测图表
-    st.markdown("### 🏘️ Commission Cash In Map(Monthly)")
-    
-    now = datetime.datetime.now()
-    today = pd.to_datetime(now.date())
-    next_month_str = (now + relativedelta(months=1)).strftime('%Y-%m')
+
     def classify_full_status(row):
+    """根据回款状态划分月份和类别"""
+    # 1. 处理【已入账】的数据
         if row['Received'] == "TRUE":
             # 优先使用 Receive date，如果没有则转为 pd.NaT
             r_date = pd.to_datetime(row['Receive date'], errors='coerce')
             if pd.notna(r_date):
-                return r_date.strftime('%Y-%m'), "✅ Received"
+                return r_date.strftime('%Y-%m'), "✅ Received (已入账)"
             else:
-                return "Unknown", "✅ Received"
+                return "Unknown", "✅ Received (已入账)"
+    
+        # 2. 处理【未入账】的数据
+        # 先计算预测日期
         row['Predicted_Date'] = apply_prediction(row)
         pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
+        
         if pd.isna(pred_date) or pred_date < today:
             # 已逾期：归入下个月
             return next_month_str, "⚠️ Slower than Expected"
         else:
+            # 正常未来预期
             return pred_date.strftime('%Y-%m'), "📅 Future Expected"
+    # F. 现金流预测图表
+    st.markdown("### 🏘️ Commission Cash In Map(Monthly)")
+    st.subheader("🛠️ 看板模式选择")
+    col_btn1, col_btn2, col_btn3 = st.columns(3) 
+    if 'view_mode' not in st.session_state:
+        st.session_state.view_mode = 'Standard'
+    with col_btn1:
+        if st.button("📅 Standard (近一年)", use_container_width=True):
+            st.session_state.view_mode = 'Standard'
+    with col_btn2:
+        if st.button("📊 Comparison", use_container_width=True):
+            st.session_state.view_mode = 'Comparison'
+    with col_btn3:
+        if st.button("🚀 Projection", use_container_width=True):
+            st.session_state.view_mode = 'Projection'
     
-    filter_year = str(select_year) if not show_total else None
+    st.divider()
     
-    # 2. 应用分类逻辑（同上一步）
-    plot_df = model.df_curr.copy()
-    plot_df[['Forecast_Month', 'Category']] = plot_df.apply(
-        lambda x: pd.Series(classify_full_status(x)), axis=1
-    )
-    # 3. 过滤掉无法识别月份的数据
-    plot_df = plot_df[plot_df['Forecast_Month'] != "Unknown"]
+    # --- 2. 基础数据准备 ---
+    now = datetime.datetime.now()
+    today = pd.to_datetime(now.date())
+    next_month_str = (now + relativedelta(months=1)).strftime('%Y-%m')
     
-    # --- 关键修改点：如果是单年模式，过滤掉非本年的数据 ---
-    if filter_year:
-        # 只保留月份字符串以该年份开头的行 (例如 "2026-01" 匹配 "2026")
-        plot_df = plot_df[plot_df['Forecast_Month'].str.startswith(filter_year)]
+    # 读取所有涉及到的年份 (假设我们有 2025, 2026)
+    df_2025 = read_file("Apartment Referral List", "2025", header_row=1)
+    df_2026 = read_file("Apartment Referral List", "2026", header_row=1)
+    # 合并全量数据用于处理
+    df_all_data = pd.concat([df_2025, df_2026], ignore_index=True)
     
-    # 4. 聚合数据
-    if not plot_df.empty:
-        plot_data = plot_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
+    # 应用分类标签 (封装在前面讨论过的逻辑中)
+    def get_processed_df(df):
+        temp_df = df.copy()
+        # 确保金额清洗已完成
+        temp_df[['Forecast_Month', 'Category']] = temp_df.apply(
+            lambda x: pd.Series(classify_full_status(x)), axis=1
+        )
+        return temp_df[temp_df['Forecast_Month'] != "Unknown"]
+    
+    # --- 3. 不同模式的界面展示 ---
+    
+    # ==========================================
+    # 模式 A: Standard (近 12 个月滚动)
+    # ==========================================
+    if st.session_state.view_mode == 'Standard':
+        st.markdown("### 📅 近 12 个月佣金回款趋势")
+        plot_df = get_processed_df(df_all_data)
+        plot_df['Temp_Date'] = pd.to_datetime(plot_df['Forecast_Month'] + "-01")
         
-        # 确保月份排序（Plotly 默认按字符串排序 YYYY-MM 正好符合时间顺序）
-        plot_data = plot_data.sort_values(['Forecast_Month', 'Category'])
-    
-        # 5. 绘图
+        # 过滤时间：当前月往前推 11 个月 + 当前月
+        one_year_ago = today.replace(day=1) - relativedelta(months=11)
+        standard_df = plot_df[(plot_df['Temp_Date'] >= one_year_ago) & (plot_df['Temp_Date'] <= today.replace(day=1))]
+        
+        plot_data = standard_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
+        
         fig = px.bar(
-            plot_data, 
-            x='Forecast_Month', 
-            y='Commission', 
-            color='Category',
-            color_discrete_map={
-                "✅ Received": "#A2D9A2",     
-                "📅 Future Expected": "#AED6F1",      
-                "⚠️ Slower than Expected": "#F5B7B1"  
-            },
-            text_auto=',.0f', 
-            barmode='stack',
-            title=f"📊 {title_label} 佣金月度看板"
+            plot_data, x='Forecast_Month', y='Commission', color='Category',
+            color_discrete_map={"✅ Received": "#A2D9A2", "📅 Future Expected": "#AED6F1", "⚠️ Slower than Expected": "#F5B7B1"},
+            text_auto=',.0f', barmode='stack'
         )
-    
-        # 优化 X 轴显示，强制显示 12 个月（即使某个月没数据也能空出来占位，更美观）
-        if filter_year:
-            all_months = [f"{filter_year}-{m:02d}" for m in range(1, 13)]
-            fig.update_xaxes(tickvals=all_months, ticktext=all_months)
-    
-        fig.update_traces(textposition='inside', textfont=dict(color="black", size=10))
-        fig.update_layout(
-            xaxis_title="Month",
-            yaxis_title="Amount ($)",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        
         st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info(f"💡 {title_label} 暂无相关月份的佣金数据。")
-
+    
+    # ==========================================
+    # 模式 B: Comparison (折线图对比)
+    # ==========================================
+    elif st.session_state.view_mode == 'Comparison':
+        st.markdown("### 📊 年度业绩走势对比 (折线图)")
+        
+        selected_years = st.multiselect("选择对比年份", options=[2025, 2026], default=[2025, 2026])
+        
+        if selected_years:
+            compare_list = []
+            for y in selected_years:
+                # 提取该年数据
+                y_df = df_2025 if y == 2025 else df_2026 # 实际开发中可动态加载
+                # 只统计已收到的钱，对比真实业绩
+                y_df = y_df[y_df['Received'] == "TRUE"].copy()
+                y_df['Month'] = pd.to_datetime(y_df['Receive date'], errors='coerce').dt.month
+                
+                # 清洗并求和
+                y_df['Commission_Clean'] = pd.to_numeric(y_df['Received Commission'].astype(str).str.replace(r'[¥$,]', '', regex=True), errors='coerce').fillna(0)
+                
+                monthly_sum = y_df.groupby('Month')['Commission_Clean'].sum().reset_index()
+                monthly_sum['Year'] = str(y)
+                compare_list.append(monthly_sum)
+            
+            if compare_list:
+                compare_df = pd.concat(compare_list)
+                
+                # 绘制折线图
+                fig_line = px.line(
+                    compare_df, x='Month', y='Commission_Clean', color='Year',
+                    markers=True, 
+                    title="不同年份月度回款对比 (Jan - Dec)",
+                    labels={'Month': '月份', 'Commission_Clean': '已收金额 ($)'}
+                )
+                fig_line.update_layout(xaxis=dict(tickmode='linear', tick0=1, dtick=1))
+                st.plotly_chart(fig_line, use_container_width=True)
+    
+    # ==========================================
+    # 模式 C: Projection (未来现金流预测)
+    # ==========================================
+    elif st.session_state.view_mode == 'Projection':
+        st.markdown("### 🚀 未来现金流预测 (Future Projection)")
+        
+        plot_df = get_processed_df(df_all_data)
+        plot_df['Temp_Date'] = pd.to_datetime(plot_df['Forecast_Month'] + "-01")
+        
+        # 过滤：只看今天及以后的数据
+        projection_df = plot_df[plot_df['Temp_Date'] >= today.replace(day=1)]
+        # 只看待收部分
+        projection_df = projection_df[projection_df['Category'] != "✅ Received"]
+        
+        plot_data = projection_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
+        
+        fig_proj = px.bar(
+            plot_data, x='Forecast_Month', y='Commission', color='Category',
+            color_discrete_map={"📅 Future Expected": "#AED6F1", "⚠️ Slower than Expected": "#F5B7B1"},
+            text_auto=',.0f', barmode='group' # 使用 group 模式让对比更明显
+        )
+        st.plotly_chart(fig_proj, use_container_width=True)
     
     # G. 公寓明细表
     st.markdown("### 🏘️ Pending Received by Apartment")
