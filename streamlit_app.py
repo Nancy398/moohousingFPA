@@ -360,14 +360,11 @@ with tab_apartments:
         avg_days = dso_map.get(row['Apartment'], global_avg)
         return move_in + pd.Timedelta(days=int(avg_days))
         
-       with st.container():
-            select_year = st.segmented_control("选择年份",
-    
-                options=[2025, 2026],
-    
-                default=2026,  # 默认高亮 2026
-    
-                label_visibility="collapsed" # 隐藏多余标签
+    with st.container():
+        select_year = st.segmented_control("选择年份",
+            options=[2025, 2026],
+            default=2026,  # 默认高亮 2026
+            label_visibility="collapsed" # 隐藏多余标签
     
             )
     
