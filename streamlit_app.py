@@ -512,7 +512,7 @@ with tab_apartments:
     df_2025['Commission'] = (
         df_2025['Commission']
         .astype(str)
-        .str.replace('¥', '')
+        .str.replace('$', '')
         .str.replace(',', '')
         .str.strip()
     )
@@ -520,7 +520,7 @@ with tab_apartments:
     df_2026['Commission'] = (
         df_2026['Commission']
         .astype(str)
-        .str.replace('¥', '')
+        .str.replace('$', '')
         .str.replace(',', '')
         .str.strip()
     )
