@@ -279,28 +279,100 @@ with tab_overview:
     
     # (可选) 展示该地块在同类中的表现
     st.bar_chart(type_df.set_index('Property ID')['Profit'])
+import streamlit as st
+import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
+import datetime
+from dateutil.relativedelta import relativedelta
+import plotly.express as px
+
+# ==========================================
+# 1. 核心财务逻辑类 (FinancialModel)
+# ==========================================
 with tab_apartments:
+    class FinancialModel:
+        def __init__(self, df_referral, df_expense, select_year=None, is_total=False):
+            self.df_curr = df_referral.copy()
+            self.df_expense = df_expense.copy()
+            self.select_year = str(select_year) if select_year else None
+            self.is_total = is_total
+            
+            # 自动执行清洗与计算
+            self._clean_data()
+            self._calculate_metrics()
+    
+        def _clean_data(self):
+            """统一处理金额格式转换"""
+            cols_to_fix = {
+                self.df_curr: ['Received Commission', 'Bonus to resident', 'Commission'],
+                self.df_expense: ['Commission', 'Expense']
+            }
+            for df, columns in cols_to_fix.items():
+                for col in columns:
+                    if col in df.columns:
+                        df[col] = (
+                            df[col].astype(str)
+                            .str.replace(r'[¥$,]', '', regex=True)
+                            .replace('nan', '0')
+                        )
+                        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    
+        def _calculate_metrics(self):
+            """核心指标计算逻辑"""
+            df = self.df_curr
+            dfe = self.df_expense
+            
+            # 费用过滤逻辑
+            if not self.is_total and self.select_year:
+                dfe_filtered = dfe[dfe['Year'].astype(str) == self.select_year]
+            else:
+                dfe_filtered = dfe
+    
+            # 1. 收入类
+            self.total_received_comm = df.loc[df['Received'] == 'TRUE', 'Received Commission'].sum()
+            self.expect_commission = df.loc[df['Received'] == 'FALSE', 'Commission'].sum()
+            
+            # 2. 支出类
+            self.paid_comm_curr = dfe_filtered['Commission'].sum()
+            self.other_expense_curr = dfe_filtered['Expense'].sum()
+            self.bonus_residents_curr = df['Bonus to resident'].sum()
+            self.total_expense = self.other_expense_curr + self.bonus_residents_curr
+            
+            # 3. 提成与工资逻辑
+            # 计算已回款但尚未支付 15% 提成的金额
+            self.payroll_pending_val = df[(df['Payroll'] == 'FALSE') & (df['Received'] == 'TRUE')]['Received Commission'].sum()
+            self.payroll_paid_val = df[(df['Payroll'] == 'TRUE') & (df['Received'] == 'TRUE')]['Received Commission'].sum()
+            
+            # 4. 状态统计
+            self.checked_in_count = len(df[df['状态'] == '已入住'])
+            self.count_unreceived = len(df[(df['状态'] == '已入住') & (df['Received'] == 'FALSE')])
+            self.received_count = self.checked_in_count - self.count_unreceived
+            
+            # 5. 利润计算 (Net Income)
+            # Realized NI = 已收佣金 - (其他支出 + 住户返现) - 已付中介佣金 - (已回款待付的15%工资提成)
+            self.realized_NI = self.total_received_comm - self.total_expense - self.paid_comm_curr - (self.payroll_pending_val * 0.15)
+            # Expected NI = 待收佣金 * 85% (扣除预计15%提成)
+            self.expected_NI = self.expect_commission * 0.85
+            self.total_NI = self.realized_NI + self.expected_NI
+            
+            # 6. 单房利润
+            self.NI_per_room = self.realized_NI / self.checked_in_count if self.checked_in_count > 0 else 0
+    
+    # ==========================================
+    # 2. 数据读取与预测函数
+    # ==========================================
     @st.cache_data(ttl=300)
     def read_file(name, sheet, header_row=0):
-        """
-        header_row: 表头所在的行索引（0 代表第 1 行，1 代表第 2 行，依此类推）
-        """
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        credentials = Credentials.from_service_account_info(
-            st.secrets["GOOGLE_APPLICATION_CREDENTIALS"], 
-            scopes=scope
-        )
+        credentials = Credentials.from_service_account_info(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"], scopes=scope)
         gc = gspread.authorize(credentials)
         worksheet = gc.open(name).worksheet(sheet)
-        rows = worksheet.get_all_values() 
+        rows = worksheet.get_all_values()
         raw_df = pd.DataFrame(rows)
-    
-        if raw_df.empty:
-            return raw_df
-        # 1. 根据传入的 header_row 动态提取表头
+        if raw_df.empty: return raw_df
+        
         new_header = raw_df.iloc[header_row].str.strip().tolist()
-            
-        # 2. 核心修复：处理重复或空列名（逻辑保持不变）
         final_header = []
         counts = {}
         for i, col in enumerate(new_header):
@@ -311,248 +383,142 @@ with tab_apartments:
             else:
                 counts[name_val] = 0
                 final_header.append(name_val)
-    
-        # 3. 动态切片：数据从 header_row 的下一行开始取
+                
         df = pd.DataFrame(raw_df.values[header_row + 1:], columns=final_header)
-            
-        # 4. 去掉全为空的行
-        df = df.dropna(how='all').reset_index(drop=True)
-        return df
-
+        return df.dropna(how='all').reset_index(drop=True)
+    
     def get_dynamic_dso(df_list):
-        """
-        df_list: 包含所有年份 DataFrame 的列表，例如 [df_2025, df_2026]
-        """
-        # 1. 合并所有历史数据
         df_all_history = pd.concat(df_list, ignore_index=True)
-        # 2. 清洗日期格式
         df_all_history['Move-in Date'] = pd.to_datetime(df_all_history['入住时间'], errors='coerce')
         df_all_history['Received Date'] = pd.to_datetime(df_all_history['Receive date'], errors='coerce')
-        # 3. 筛选已回款的“成功案例”
-        paid_mask = (
-            (df_all_history['Received'] == "TRUE") & 
-            df_all_history['Move-in Date'].notna() & 
-            df_all_history['Received Date'].notna()
-        )
-        history_paid = df_all_history[paid_mask].copy()
         
-        # 4. 计算回款周期并剔除异常值（比如负数或超过一年的离群点）
+        paid_mask = (df_all_history['Received'] == "TRUE") & df_all_history['Move-in Date'].notna() & df_all_history['Received Date'].notna()
+        history_paid = df_all_history[paid_mask].copy()
         history_paid['days'] = (history_paid['Received Date'] - history_paid['Move-in Date']).dt.days
-        # history_paid = history_paid[(history_paid['days'] > 0) & (history_paid['days'] < 365)]
-        # 5. 生成公寓映射表和全局平均值
+        
         dso_map = history_paid.groupby('Apartment')['days'].mean().to_dict()
         global_avg = history_paid['days'].mean() if not history_paid.empty else 45
-        
         return dso_map, global_avg
-    # 同时读取两年数据
+    
+    # ==========================================
+    # 3. Streamlit UI 布局
+    # ==========================================
+    st.set_page_config(layout="wide", page_title="Apartment Financial Dashboard")
+    
+    # A. 加载原始数据
     df_2025 = read_file("Apartment Referral List", "2025", header_row=1)
     df_2026 = read_file("Apartment Referral List", "2026", header_row=1)
+    df_expense_raw = read_file("Apartments FA", "Expense")
     
-    # 获取基于全量数据的经验模型
+    # B. 计算回款预测映射
     dso_map, global_avg = get_dynamic_dso([df_2025, df_2026])
     
-    # 预测逻辑（针对当前选中的年份 df_curr）
     def apply_prediction(row):
-        if row['Received'] == "TRUE":
-            return row['Receive date']
+        if row['Received'] == "TRUE": return row['Receive date']
         move_in = pd.to_datetime(row['入住时间'], errors='coerce')
         if pd.isna(move_in): return None
         avg_days = dso_map.get(row['Apartment'], global_avg)
         return move_in + pd.Timedelta(days=int(avg_days))
-        
+    
+    # C. 顶部控制栏
     with st.container():
-        select_year = st.segmented_control("选择年份",
-            options=[2025, 2026],
-            default=2026,  # 默认高亮 2026
-            label_visibility="collapsed" # 隐藏多余标签
+        c_left, c_right = st.columns([0.7, 0.3], vertical_alignment="bottom")
+        with c_left:
+            select_year = st.segmented_control("Year Selection", options=[2025, 2026], default=2026, label_visibility="collapsed")
+        with c_right:
+            show_total = st.toggle("📊 Show All-Time Total View", value=False)
     
-            )
+    # D. 模式切换与模型实例化
+    if show_total:
+        df_input = pd.concat([df_2025, df_2026], ignore_index=True)
+        model = FinancialModel(df_input, df_expense_raw, is_total=True)
+        title_label = "All-Time History"
+    else:
+        df_input = df_2025 if select_year == 2025 else df_2026
+        model = FinancialModel(df_input, df_expense_raw, select_year=select_year, is_total=False)
+        title_label = f"Year {select_year}"
     
-
-    select_year = str(select_year)
-    df_curr = read_file("Apartment Referral List",select_year,header_row=1)
-    df_expense = read_file("Apartments FA","Expense")
-    df_curr['Received Commission'] = (
-        df_curr['Received Commission']
-        .astype(str)
-        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
-        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
-    )
-    df_curr['Bonus to resident'] = (
-        df_curr['Bonus to resident']
-        .astype(str)
-        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
-        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
-    )
-    df_expense['Commission'] = (
-        df_expense['Commission']
-        .astype(str)
-        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
-        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
-    )
-    df_expense['Expense'] = (
-        df_expense['Expense']
-        .astype(str)
-        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
-        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
-    )
-    df_curr['Commission'] = (
-        df_curr['Commission']
-        .astype(str)
-        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
-        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
-    )
-    df_curr['Received Commission'] = pd.to_numeric(df_curr['Received Commission'], errors='coerce').fillna(0)
-    df_curr['Bonus to resident'] = pd.to_numeric(df_curr['Bonus to resident'], errors='coerce').fillna(0)
-    df_curr['Commission'] = pd.to_numeric(df_curr['Commission'], errors='coerce').fillna(0)
-    df_curr['Predicted_Date'] = df_curr.apply(apply_prediction, axis=1)
-    df_expense['Commission'] = pd.to_numeric(df_expense['Commission'], errors='coerce').fillna(0)
-    df_expense['Expense'] = pd.to_numeric(df_expense['Expense'], errors='coerce').fillna(0)
-    mask_unreceived = (df_curr['状态'] == '已入住')& (df_curr['Received'] == 'FALSE')
-    df_unreceived = df_curr[mask_unreceived]
-    count_unreceived = len(df_unreceived)
-    total_received_commission = df_curr.loc[df_curr['Received'] == 'TRUE', 'Received Commission'].sum()
-    payroll_paid_val = df_curr[(df_curr['Payroll'] == 'TRUE') & (df_curr['Received'] == 'TRUE')]['Received Commission'].sum()
-    payroll_pending_received_val = df_curr[(df_curr['Payroll'] == 'FALSE') & (df_curr['Received'] == 'TRUE')]['Received Commission'].sum()
-    paid_comm_curr = df_expense[(df_expense['Year'] == select_year)]['Commission'].sum()
-    other_expense_curr = df_expense[(df_expense['Year'] == select_year)]['Expense'].sum()
-    bonus_residents_curr = df_curr['Bonus to resident'].sum()
-    total_expense = other_expense_curr + bonus_residents_curr
-    checked_in_count = len(df_curr[df_curr['状态'] == '已入住'])
-    received_count = checked_in_count-count_unreceived
-    expect_commission = df_curr.loc[df_curr['Received'] == 'FALSE', 'Commission'].sum()
-    mask_unknown = (df_curr['Received'] == 'FALSE') & (df_curr['Commission'] == 0)&(df_curr['状态'] == '已入住')
-    df_unknown = df_curr[mask_unknown]
-    unknown_commssion = len(df_unknown)
-    realized_NI = total_received_commission - total_expense - paid_comm_curr - payroll_pending_received_val*0.15
-    expected_NI = expect_commission * 0.85
-    total_NI = realized_NI+expected_NI
-    NI_per_room =realized_NI/checked_in_count
-
-    today = pd.to_datetime(datetime.datetime.now().date())
-
-# 筛选未收到的单子
-    df_all = pd.concat([df_2025,df_2026], ignore_index=True)
-    df_all['Predicted_Date'] = df_all.apply(apply_prediction, axis=1)
-    df_all['Commission'] = (
-        df_all['Commission']
-        .astype(str)
-        .str.replace(r'[¥$,]', '', regex=True) # 同时兼容 ￥, $ 和 逗号
-        .replace('nan', '0')                  # 处理空值转成的字符串 'nan'
-    )
-    df_all['Commission'] = pd.to_numeric(df_all['Commission'], errors='coerce').fillna(0)
-    
-    st.dataframe(df_all)
-    unreceived_df = df_all[df_all['Received'] == "FALSE"].copy()
-    unreceived_df['Predicted_Date'] = pd.to_datetime(unreceived_df['Predicted_Date'])
-    
-    st.title(f"📊 {select_year} Apartments Analysis")
+    # E. 渲染 Dashboard 指标
+    st.title(f"📊 {title_label} Analysis")
     st.divider()
-# --- 2. 从 df_expense 计算指标 ---
-    col1, col2,col3,col4 = st.columns(4)
-    col1.metric("已入住总数", f"{int(checked_in_count)}")
-    col2.metric("已收commission总数", f"{int(received_count)}")
-    col3.metric("Pending Received记录数 (已入住)", f"{count_unreceived}")
-    col4.metric("Already received", f"${total_received_commission:,.2f}")
-
-    col1, col2,col3,col4 = st.columns(4)
-    with col1:
-        st.metric("Paid Commission", f"${paid_comm_curr:,.2f}")
-        st.caption(f"With received commission **${payroll_paid_val:,.2f}**")
-    col2.metric("Other Expense", f"${total_expense:,.2f}")
-    col3.metric("Expected Commission to be Received", f"${expect_commission:,.2f}")
-    col4.metric("Unknown Status", f"{int(unknown_commssion)}")
-
-    col1, col2,col3,col4 = st.columns(4)
-    with col1:
-        st.metric("Realized Net Income", f"${realized_NI:,.2f}")
-        st.caption(f"With Unpaid commission **${payroll_pending_received_val*0.15:,.2f}**")
-    col2.metric("Expected Net Income", f"${expected_NI:,.2f}")
-    col3.metric("Total Net Income - Estimated", f"${total_NI:,.2f}")
-    col4.metric("Net Income per room", f"${NI_per_room:,.2f}")
-    st.markdown("### 🏘️ Predicted Commission Cash In")
+    
+    # 第一行：基础统计
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("已入住总数", f"{model.checked_in_count}")
+    m2.metric("已收数", f"{model.received_count}")
+    m3.metric("待收数", f"{model.count_unreceived}")
+    m4.metric("Already Received", f"${model.total_received_comm:,.2f}")
+    
+    # 第二行：费用与待收
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.metric("Paid Commission", f"${model.paid_comm_curr:,.2f}")
+        st.caption(f"With received commission: **${model.payroll_paid_val:,.2f}**")
+    m2.metric("Total Expense", f"${model.total_expense:,.2f}")
+    m3.metric("Expected Commission", f"${model.expect_commission:,.2f}")
+    # 计算未知金额的单数
+    unknown_count = len(model.df_curr[(model.df_curr['Received'] == 'FALSE') & (model.df_curr['Commission'] == 0) & (model.df_curr['状态'] == '已入住')])
+    m4.metric("Unknown Commission", f"{unknown_count}")
+    
+    # 第三行：利润分析
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.metric("Realized Net Income", f"${model.realized_NI:,.2f}")
+        st.caption(f"With unpaid 15% Comm: **${model.payroll_pending_val * 0.15:,.2f}**")
+    m2.metric("Expected Net Income", f"${model.expected_NI:,.2f}")
+    m3.metric("Estimated Total NI", f"${model.total_NI:,.2f}")
+    m4.metric("NI per Room", f"${model.NI_per_room:,.2f}")
+    
+    # F. 现金流预测图表
+    st.markdown("### 🏘️ Predicted Commission Cash In (Monthly)")
+    
     now = datetime.datetime.now()
     today = pd.to_datetime(now.date())
-    # 获取下个月的第一天，并格式化为 YYYY-MM
     next_month_str = (now + relativedelta(months=1)).strftime('%Y-%m')
-    def classify_forecast(row):
-        if row['Received'] == "TRUE":
-            return None, None
     
+    def classify_forecast(row):
+        if row['Received'] == "TRUE": return None, None
+        row['Predicted_Date'] = apply_prediction(row)
         pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
-        
-        # 如果已逾期
         if pd.isna(pred_date) or pred_date < today:
             return next_month_str, "⚠️ Slower than Expected"
-        else:
-            # 正常未来款项
-            return pred_date.strftime('%Y-%m'), "📅 Future Expected"
-
-# 应用函数生成两个新列
-    unreceived_df[['Forecast_Month', 'Category']] = unreceived_df.apply(
-        lambda x: pd.Series(classify_forecast(x)), axis=1
-    )
+        return pred_date.strftime('%Y-%m'), "📅 Future Expected"
     
-    # 3. 聚合数据用于绘图
-    plot_data = unreceived_df[unreceived_df['Forecast_Month'].notna()].groupby(
-        ['Forecast_Month', 'Category']
-    )['Commission'].sum().reset_index()
-    
-    # 4. 绘制堆叠柱状图
-    if not plot_data.empty:
-        # 确保月份排序正确
+    unreceived_df = model.df_curr[model.df_curr['Received'] == "FALSE"].copy()
+    if not unreceived_df.empty:
+        unreceived_df[['Forecast_Month', 'Category']] = unreceived_df.apply(lambda x: pd.Series(classify_forecast(x)), axis=1)
+        plot_data = unreceived_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
         plot_data = plot_data.sort_values(['Forecast_Month', 'Category'])
-        
+    
         fig = px.bar(
-            plot_data,
-            x='Forecast_Month',
-            y='Commission',
-            color='Category',
-            # 自定义颜色：逾期用醒目的深橙/红，正常用蓝色
-            color_discrete_map={
-                "⚠️ Slower than Expected": "#F8A1A1", 
-                "📅 Future Expected": "#B0C4DE"
-            },
-            text_auto=',.0f',
-            barmode='stack' # 确保是堆叠模式
+            plot_data, x='Forecast_Month', y='Commission', color='Category',
+            color_discrete_map={"⚠️ Slower than Expected": "#F5B7B1", "📅 Future Expected": "#AED6F1"},
+            text_auto=',.0f', barmode='stack'
         )
-        
-        fig.update_traces(textposition='inside') # 数字显示在柱子内部
-        fig.update_layout(
-            xaxis_title="Month",
-            yaxis_title="Amount ($)",
-            legend_title="Type",
-            hovermode="x unified"
-        )
-        
+        fig.update_traces(textposition='inside', textfont=dict(color="black"))
+        fig.update_layout(xaxis_title="Predicted Month", yaxis_title="Commission Amount ($)", legend_title="Status", hovermode="x unified")
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("💡 暂无待收款项数据。")
-        
+        st.info("💡 No pending commissions for this period.")
+    
+    # G. 公寓明细表
     st.markdown("### 🏘️ Pending Received by Apartment")
+    if model.count_unreceived > 0:
+        apt_summary = unreceived_df.groupby('Apartment').agg(
+            Count=('Apartment', 'size'),
+            Pending_Total=('Commission', 'sum'),
+            Missing_Info=('Commission', lambda x: (x == 0).sum())
+        ).reset_index().sort_values('Pending_Total', ascending=False)
     
-    if count_unreceived > 0:
-        apt_summary = df_unreceived.groupby('Apartment').agg(
-            Count=('Apartment', 'size'),                  # 统计行数
-            Pending_Received=('Commission', 'sum'),       # 注意：变量名中间用下划线，不能用空格
-            Unknown=('Commission', lambda x: (pd.to_numeric(x) == 0).sum()) # 统计金额为 0 的记录
-        ).reset_index()
-    
-        # 在 Streamlit 展示
         st.dataframe(
             apt_summary,
             column_config={
                 "Apartment": "Apartment Name",
-                "Count": "Total Records",
-                "Pending_Received": st.column_config.NumberColumn("Pending Total", format="$%,.2f"),
-                "Unknown": st.column_config.NumberColumn("Missing Info", format="%d")
+                "Pending_Total": st.column_config.NumberColumn("Pending Total", format="$%,.0f"),
+                "Missing_Info": "Missing Amount Info"
             },
-            hide_index=True,
-            use_container_width=True
+            hide_index=True, use_container_width=True
         )
-    else:
-        st.write("目前没有待收记录。")
-
-    
-    
-    
+            
+            
+        
