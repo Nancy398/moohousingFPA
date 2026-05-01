@@ -481,9 +481,9 @@ with tab_apartments:
             # 优先使用 Receive date，如果没有则转为 pd.NaT
             r_date = pd.to_datetime(row['Receive date'], errors='coerce')
             if pd.notna(r_date):
-                return r_date.strftime('%Y-%m'), "✅ Received (已入账)"
+                return r_date.strftime('%Y-%m'), "✅ Received"
             else:
-                return "Unknown", "✅ Received (已入账)"
+                return "Unknown", "✅ Received"
         row['Predicted_Date'] = apply_prediction(row)
         pred_date = pd.to_datetime(row['Predicted_Date'], errors='coerce')
         
@@ -494,78 +494,93 @@ with tab_apartments:
             # 正常未来预期
             return pred_date.strftime('%Y-%m'), "📅 Future Expected"
     
+    filter_year = str(select_year) if not show_total else None
+    
+    # 2. 应用分类逻辑（同上一步）
     plot_df = model.df_curr.copy()
-
-    # 应用分类逻辑
     plot_df[['Forecast_Month', 'Category']] = plot_df.apply(
         lambda x: pd.Series(classify_full_status(x)), axis=1
     )
     
-    # 过滤掉无法识别月份的数据（如果有的话）
+    # 3. 过滤掉无法识别月份的数据
     plot_df = plot_df[plot_df['Forecast_Month'] != "Unknown"]
     
+    # --- 关键修改点：如果是单年模式，过滤掉非本年的数据 ---
+    if filter_year:
+        # 只保留月份字符串以该年份开头的行 (例如 "2026-01" 匹配 "2026")
+        plot_df = plot_df[plot_df['Forecast_Month'].str.startswith(filter_year)]
+    
+    # 4. 聚合数据
     if not plot_df.empty:
-        # 分组聚合金额
         plot_data = plot_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
         
-        # 排序：确保月份有序，且类别按 Received -> Future -> Slower 堆叠
+        # 确保月份排序（Plotly 默认按字符串排序 YYYY-MM 正好符合时间顺序）
         plot_data = plot_data.sort_values(['Forecast_Month', 'Category'])
     
-        # 绘制图表
+        # 5. 绘图
         fig = px.bar(
             plot_data, 
             x='Forecast_Month', 
             y='Commission', 
             color='Category',
-            # 增加一个绿色的配色方案
             color_discrete_map={
-                "✅ Received": "#A2D9A2",     # 淡雅绿
-                "📅 Future Expected": "#AED6F1",      # 浅蓝色
-                "⚠️ Slower than Expected": "#F5B7B1"  # 浅红色
+                "✅ Received": "#A2D9A2",     
+                "📅 Future Expected": "#AED6F1",      
+                "⚠️ Slower than Expected": "#F5B7B1"  
             },
             text_auto=',.0f', 
             barmode='stack',
-            # title=f"📊 年度佣金回款进度全景图 (含已入账 & 预测)"
+            title=f"📊 {title_label} 佣金月度看板"
         )
     
-        # 优化 UI
-        fig.update_traces(
-            textposition='inside', 
-            textfont=dict(color="black", size=10),
-            insidetextanchor='middle'
-        )
-        
+        # 优化 X 轴显示，强制显示 12 个月（即使某个月没数据也能空出来占位，更美观）
+        if filter_year:
+            all_months = [f"{filter_year}-{m:02d}" for m in range(1, 13)]
+            fig.update_xaxes(tickvals=all_months, ticktext=all_months)
+    
+        fig.update_traces(textposition='inside', textfont=dict(color="black", size=10))
         fig.update_layout(
             xaxis_title="Month",
-            yaxis_title="Total Commission Amount ($)",
-            legend_title="Payment Status",
-            hovermode="x unified",
+            yaxis_title="Amount ($)",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("💡 目前没有任何数据可以展示。")
+        st.info(f"💡 {title_label} 暂无相关月份的佣金数据。")
 
     
     # G. 公寓明细表
     st.markdown("### 🏘️ Pending Received by Apartment")
-    if model.count_unreceived > 0:
-        apt_summary = unreceived_df.groupby('Apartment').agg(
+    df_pending_table = plot_df[plot_df['Category'] != "✅ Received"].copy()
+
+    if not df_pending_table.empty:
+        # 2. 聚合计算
+        apt_summary = df_pending_table.groupby('Apartment').agg(
             Count=('Apartment', 'size'),
             Pending_Total=('Commission', 'sum'),
-            Missing_Info=('Commission', lambda x: (x == 0).sum())
+            # 统计那些状态是已入住但 Commission 填了 0 的，或者是还没填金额的
+            Missing_Info=('Commission', lambda x: (pd.to_numeric(x) == 0).sum())
         ).reset_index().sort_values('Pending_Total', ascending=False)
     
+        # 3. 渲染表格
         st.dataframe(
             apt_summary,
             column_config={
                 "Apartment": "Apartment Name",
-                "Pending_Total": st.column_config.NumberColumn("Pending Total", format="$%,.0f"),
-                "Missing_Info": "Missing Amount Info"
+                "Count": "Unpaid Units",
+                "Pending_Total": st.column_config.NumberColumn("Pending Amount", format="$%,.0f"),
+                "Missing_Info": st.column_config.NumberColumn("Missing $ Data", format="%d")
             },
-            hide_index=True, use_container_width=True
+            hide_index=True, 
+            use_container_width=True
         )
-            
+        
+        # 可选：加一个提示，告诉用户这些钱的总额
+        total_p = apt_summary['Pending_Total'].sum()
+        st.caption(f"☝️ 以上公寓共有 **{len(apt_summary)}** 处待收，总计金额约 **${total_p:,.0f}**")
+    
+    else:
+        st.success(f"🎉 恭喜！{display_title} 所有款项已结清，没有待收项目。")
             
         
