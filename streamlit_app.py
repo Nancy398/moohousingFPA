@@ -304,11 +304,12 @@ with tab_apartments:
     
         def _clean_data(self):
             """统一处理金额格式转换"""
-            cols_to_fix = {
-                self.df_curr: ['Received Commission', 'Bonus to resident', 'Commission'],
-                self.df_expense: ['Commission', 'Expense']
-            }
-            for df, columns in cols_to_fix.items():
+            items_to_fix = [
+            (self.df_curr, ['Received Commission', 'Bonus to resident', 'Commission']),
+            (self.df_expense, ['Commission', 'Expense'])
+        ]
+        
+            for df, columns in items_to_fix:
                 for col in columns:
                     if col in df.columns:
                         df[col] = (
