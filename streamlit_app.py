@@ -411,7 +411,6 @@ with tab_apartments:
     
     # A. 加载原始数据
     df_2025 = read_file("Apartment Referral List", "2025", header_row=1)
-    st.dataframe(df_2025)
     df_2026 = read_file("Apartment Referral List", "2026", header_row=1)
     df_expense_raw = read_file("Apartments FA", "Expense")
     
