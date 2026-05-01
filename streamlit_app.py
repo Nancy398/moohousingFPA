@@ -544,12 +544,10 @@ with tab_apartments:
     # ==========================================
     if st.session_state.view_mode == 'Standard':
         plot_df = get_processed_df(df_all_data)
-        st.dataframe(plot_df)
         plot_df['Temp_Date'] = pd.to_datetime(plot_df['Forecast_Month'] + "-01")
         one_year_ago = today.replace(day=1) - relativedelta(months=11)
         standard_df = plot_df[(plot_df['Temp_Date'] >= one_year_ago) & (plot_df['Temp_Date'] <= today.replace(day=1))]
         plot_data = standard_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
-        st.dataframe(plot_data)
         fig = px.bar(
             plot_data, x='Forecast_Month', y='Commission', color='Category',
             color_discrete_map={"✅ Received": "#A2D9A2", "📅 Future Expected": "#AED6F1", "⚠️ Slower than Expected": "#F5B7B1"},
@@ -588,18 +586,25 @@ with tab_apartments:
                 fig_line = px.line(
                     compare_df, x='Month', y='Commission_Clean', color='Year',
                     markers=True, 
-                    title="不同年份月度回款对比 (Jan - Dec)",
+                    text=compare_df['Commission'].apply(lambda x: f'{x/1000:.1f}k' if x >= 1000 else f'{x:.0f}'),
                     labels={'Month': '月份', 'Commission_Clean': '已收金额 ($)'}
                 )
-                fig_line.update_layout(xaxis=dict(tickmode='linear', tick0=1, dtick=1))
+                fig_line.update_traces(
+                    textposition="top center", # 数值显示在点的正上方
+                    textfont_size=10,          # 字体大小
+                    cliponaxis=False           # 防止标签被边缘裁剪
+                )
+                fig_line.update_layout(
+                    xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+                    yaxis_title="Amount ($)",
+                    hovermode="x unified"      # 悬停时显示该月份所有年份的对比
+                )
                 st.plotly_chart(fig_line, use_container_width=True)
     
     # ==========================================
     # 模式 C: Projection (未来现金流预测)
     # ==========================================
     elif st.session_state.view_mode == 'Projection':
-        st.markdown("### 🚀 未来现金流预测 (Future Projection)")
-        
         plot_df = get_processed_df(df_all_data)
         plot_df['Temp_Date'] = pd.to_datetime(plot_df['Forecast_Month'] + "-01")
         
@@ -607,15 +612,37 @@ with tab_apartments:
         projection_df = plot_df[plot_df['Temp_Date'] >= today.replace(day=1)]
         # 只看待收部分
         projection_df = projection_df[projection_df['Category'] != "✅ Received"]
-        
         plot_data = projection_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
-        
         fig_proj = px.bar(
             plot_data, x='Forecast_Month', y='Commission', color='Category',
             color_discrete_map={"📅 Future Expected": "#AED6F1", "⚠️ Slower than Expected": "#F5B7B1"},
-            text_auto=',.0f', barmode='group' # 使用 group 模式让对比更明显
+            text_auto=',.0f', barmode='stack' # 使用 group 模式让对比更明显
         )
+        fig_proj.update_traces(
+            textposition='inside', 
+            textfont=dict(color="black", size=11),
+            insidetextanchor='middle'
+        )
+        
+        fig_proj.update_layout(
+            xaxis_title="Month (Predicted)",
+            yaxis_title="Pending Amount ($)",
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        
         st.plotly_chart(fig_proj, use_container_width=True)
+        
+        # 6. 额外补充：预测总额小计
+        total_projected = projection_df['Commission'].sum()
+        overdue_projected = projection_df[projection_df['Category'] == "⚠️ Slower than Expected"]['Commission'].sum()
+        
+        c1, c2 = st.columns(2)
+        c1.metric("未来待收总额", f"${total_projected:,.2f}")
+        c2.metric("其中已逾期/顺延", f"${overdue_projected:,.2f}", delta=f"{(overdue_projected/total_projected)*100:.1f}% of total", delta_color="inverse")
+        
+    else:
+        st.info("💡 目前没有未来的待收记录。")
     
     # G. 公寓明细表
     st.markdown("### 🏘️ Pending Received by Apartment")
