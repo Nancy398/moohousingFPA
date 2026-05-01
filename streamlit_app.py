@@ -552,6 +552,7 @@ with tab_apartments:
     
     # G. 公寓明细表
     st.markdown("### 🏘️ Pending Received by Apartment")
+    st.dataframe(plot_df)
     df_pending_table = plot_df[plot_df['Category'] != "✅ Received"].copy()
     st.dataframe(df_pending_table)
     if not df_pending_table.empty:
