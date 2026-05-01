@@ -433,6 +433,7 @@ with tab_apartments:
 
 # 筛选未收到的单子
     df_all = pd.concat([df_2025,df_2026], ignore_index=True)
+    df_all['Predicted_Date'] = df_all.apply(apply_prediction, axis=1)
     st.dataframe(df_all)
     unreceived_df = df_all[df_all['Received'] == "FALSE"].copy()
     unreceived_df['Predicted_Date'] = pd.to_datetime(unreceived_df['Predicted_Date'])
