@@ -359,22 +359,16 @@ with tab_apartments:
         if pd.isna(move_in): return None
         avg_days = dso_map.get(row['Apartment'], global_avg)
         return move_in + pd.Timedelta(days=int(avg_days))
-    with st.container():
-        # 创建两列，第一列放年份（占大部分空间），第二列放 Total 开关
-        col_left, col_right = st.columns([0.8, 0.2], vertical_alignment="bottom")
+        
+       with st.container():
+            select_year = st.segmented_control("选择年份",
     
-        with col_left:
-            select_year = st.segmented_control(
-                "选择年份",
                 options=[2025, 2026],
-                default=2026,
-                label_visibility="collapsed"
-            )
     
-        with col_right:
-            # 使用 toggle 开关，看起来更像一个独立的全局设置
-            show_total = st.toggle("Show Total", value=False)
-            label_visibility="collapsed" # 隐藏多余标签
+                default=2026,  # 默认高亮 2026
+    
+                label_visibility="collapsed" # 隐藏多余标签
+    
             )
     
 
