@@ -579,234 +579,233 @@ with tab_apartments:
         # ==========================================
         # 模式 B: Comparison (折线图对比)
         # ==========================================
-        elif st.session_state.view_mode == 'Comparison':
-            st.markdown("### 📊 年度业绩走势对比 (折线图)")
-            c1, c2, c3 = st.columns([0.4, 0.3, 0.3])
-            with c1:
-                metrics_map = {
-                    "Realized Net Income": "Net_Income",
-                    "Actual Cash Flow": "Cash_Flow"
-                }
-                selected_label = st.selectbox("🎯 Select Metrics", options=list(metrics_map.keys()))
-            
-            with c3:
-                # 让用户选择对比哪些季度（默认全选）
-                selected_quarters = st.multiselect("📅 Select Season", options=[1, 2, 3, 4], default=[1, 2, 3, 4], format_func=lambda x: f"Q{x}")
-                
-            with c2:
-                selected_years = st.multiselect("Select Year", options=[2025, 2026], default=[2025, 2026])
-                st.caption(f"Select Year: {', '.join(map(str, selected_years))}")
+    elif st.session_state.view_mode == 'Comparison':
+        st.markdown("### 📊 年度业绩走势对比 (折线图)")
+        c1, c2, c3 = st.columns([0.4, 0.3, 0.3])
+        with c1:
+            metrics_map = {
+                "Realized Net Income": "Net_Income",
+                "Actual Cash Flow": "Cash_Flow"
+            }
+            selected_label = st.selectbox("🎯 Select Metrics", options=list(metrics_map.keys()))
         
-            if not selected_quarters:
-                st.warning("请至少选择一个季度进行对比")
-                st.stop()
-            compare_list = []
-            st.dataframe(model.df_curr)
+        with c3:
+            # 让用户选择对比哪些季度（默认全选）
+            selected_quarters = st.multiselect("📅 Select Season", options=[1, 2, 3, 4], default=[1, 2, 3, 4], format_func=lambda x: f"Q{x}")
+            
+        with c2:
+            st.caption(f"Select Year: {', '.join(map(str, selected_years))}")
     
-            for y in selected_years:
-                # --- 数据预处理 ---
-                y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
-                ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
-        
-                # 统一转换时间字段
-                y_df['MoveIn_Q'] = pd.to_datetime(y_df['入住时间'], errors='coerce').dt.quarter
-                y_df['Rec_Date'] = pd.to_datetime(y_df['Receive date'], errors='coerce')
-                y_df['Rec_Q'] = y_df['Rec_Date'].dt.quarter
-                
-                # 支出表利用你新增的两列
-                ye_df['Exp_Q'] = pd.to_numeric(ye_df['Season'], errors='coerce') 
-                ye_df['CF_Date'] = pd.to_datetime(ye_df['Cashflow'], errors='coerce') # 现金流日期
-                ye_df['CF_Q'] = ye_df['CF_Date'].dt.quarter # 现金流季度
-        
-                # --- 2. 核心计算逻辑 ---
-                if selected_label == "Realized Net Income":
-                    y_df_filtered = y_df[y_df['MoveIn_Q'].isin(selected_quarters)]
-                    ye_df_filtered = ye_df[ye_df['Exp_Q'].isin(selected_quarters)]
-                    rev = y_df_filtered[y_df_filtered['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum()
-                    bonus = y_df_filtered.groupby('MoveIn_Q')['Bonus to resident'].sum()
-                    payroll = y_df_filtered[y_df_filtered['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum() * 0.15
-                    fixed_exp = ye_df_filtered.groupby('Exp_Q')['Amount'].sum()
-                    q_series = rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0)
-        
-                elif selected_label == "Actual Cash Flow":
-                    # 【现金口径】按钱实际进出的季度对齐
-                    y_df_filtered = y_df[y_df['Rec_Q'].isin(selected_quarters)]
-                    ye_df_filtered = ye_df[ye_df['CF_Q'].isin(selected_quarters)]
-                    
-                    cash_in = y_df_filtered.groupby('Rec_Q')['Received Commission'].sum()
-                    cash_out = ye_df_filtered.groupby('CF_Q')['Amount'].sum()
-                    
-                    q_series = cash_in.fillna(0) - cash_out.fillna(0)
-        
-                # --- 3. 结果汇总 ---
-                q_df = q_series.reset_index()
-                q_df.columns = ['Quarter', 'Value']
-                # 确保只显示选中的季度
-                full_q = pd.DataFrame({'Quarter': selected_quarters})
-                q_df = full_q.merge(q_df, on='Quarter', how='left').fillna(0)
-                q_df['Year'] = str(y)
-                q_df['Quarter_Label'] = q_df['Quarter'].apply(lambda x: f"Q{int(x)}")
-                
-                compare_list.append(q_df)
-        
-            # --- 4. 绘图 ---
-            if compare_list:
-                plot_data = pd.concat(compare_list).sort_values(['Quarter', 'Year'])
-                
-                fig = px.bar(
-                    plot_data, x='Quarter_Label', y='Value', color='Year',
-                    barmode='group', text_auto=',.0f',
-                    title=f"📅 {selected_label} 年度季度对比",
-                    color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"} # 不同深度的蓝色
-                )
-                st.plotly_chart(fig, use_container_width=True)
-        
-        # ==========================================
-        # 模式 C: Projection (未来现金流预测)
-        # ==========================================
-        elif st.session_state.view_mode == 'Projection':
-            plot_df = get_processed_df(df_all_data)
-            plot_df['Temp_Date'] = pd.to_datetime(plot_df['Forecast_Month'] + "-01")
-            
-            # 过滤：只看今天及以后的数据
-            projection_df = plot_df[plot_df['Temp_Date'] >= today.replace(day=1)]
-            # 只看待收部分
-            projection_df = projection_df[projection_df['Category'] != "✅ Received"]
-            plot_data = projection_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
-            fig_proj = px.bar(
-                plot_data, x='Forecast_Month', y='Commission', color='Category',
-                color_discrete_map={"📅 Future Expected": "#AED6F1", "⚠️ Slower than Expected": "#F5B7B1"},
-                text_auto=',.0f', barmode='stack' # 使用 group 模式让对比更明显
-            )
-            fig_proj.update_traces(
-                textposition='inside', 
-                textfont=dict(color="black", size=11),
-                insidetextanchor='middle'
-            )
-            
-            fig_proj.update_layout(
-                xaxis_title="Month (Predicted)",
-                yaxis_title="Pending Amount ($)",
-                hovermode="x unified",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-            
-            st.plotly_chart(fig_proj, use_container_width=True)
-            
-            # 6. 额外补充：预测总额小计
-            total_projected = projection_df['Commission'].sum()
-            overdue_projected = projection_df[projection_df['Category'] == "⚠️ Slower than Expected"]['Commission'].sum()
-            
-            c1, c2 = st.columns(2)
-            c1.metric("未来待收总额", f"${total_projected:,.2f}")
-            c2.metric("其中已逾期/顺延", f"${overdue_projected:,.2f}", delta=f"{(overdue_projected/total_projected)*100:.1f}% of total", delta_color="inverse")
-            
-        else:
-            st.info("💡 目前没有未来的待收记录。")
-        
-        # G. 公寓明细表
-        st.markdown("### 🏘️ Pending Received by Apartment")
-        st.dataframe(plot_df)
-        df_pending_table = plot_df[plot_df['Category'] != "✅ Received"].copy()
-        st.dataframe(df_pending_table)
-        if not df_pending_table.empty:
-            # 2. 聚合计算
-            apt_summary = df_pending_table.groupby('Apartment').agg(
-                Count=('Apartment', 'size'),
-                Pending_Total=('Commission', 'sum'),
-                # 统计那些状态是已入住但 Commission 填了 0 的，或者是还没填金额的
-                Missing_Info=('Commission', lambda x: (pd.to_numeric(x) == 0).sum())
-            ).reset_index().sort_values('Pending_Total', ascending=False)
-        
-            # 3. 渲染表格
-            st.dataframe(
-                apt_summary,
-                column_config={
-                    "Apartment": "Apartment Name",
-                    "Count": "Unpaid Units",
-                    "Pending_Total": st.column_config.NumberColumn("Pending Amount", format="$%,.0f"),
-                    "Missing_Info": st.column_config.NumberColumn("Missing $ Data", format="%d")
-                },
-                hide_index=True, 
-                use_container_width=True
-            )
-            
-            # 可选：加一个提示，告诉用户这些钱的总额
-            total_p = apt_summary['Pending_Total'].sum()
-            st.caption(f"☝️ 以上公寓共有 **{len(apt_summary)}** 处待收，总计金额约 **${total_p:,.0f}**")
-        
-        else:
-            st.success(f"🎉 恭喜！所有款项已结清，没有待收项目。")
-                
-    if st.session_state.view_mode == 'Comparison':   
-        st.divider()
-    
-    # 在对比模式下，增加一个维度选择器
-        metrics_map = {
-            "Received Commission ($)": "Received Commission",
-            "Moved in (Rooms)": "Checked-in Count",
-            "Pending Commission ($)": "Pending Commission",
-            "Realized Net Income ($)": "Realized Net Income"
-        }
-        selected_label = st.selectbox("🎯 选择对比指标", options=list(metrics_map.keys()))
-    
-        summary_data = []
-    
+        if not selected_quarters:
+            st.warning("请至少选择一个季度进行对比")
+            st.stop()
+        compare_list = []
+        st.dataframe(model.df_curr)
+
         for y in selected_years:
-            # 提取该年全部数据
+            # --- 数据预处理 ---
             y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
             ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
     
-            # 根据选择计算全年的“一个值”
-            if selected_label == "Received Commission ($)":
-                total_val = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
-                
-            elif selected_label == "Moved in (Rooms)":
-                total_val = len(y_df[y_df['状态'] == "已入住"])
-                
-            elif selected_label == "Pending Commission ($)":
-                total_val = y_df[y_df['Received'] == "FALSE"]['Commission'].sum()
-                
-            elif selected_label == "Realized Net Income ($)":
-                # 全年总收入 - 总返现 - 总支出 - 总工资提成
-                rev = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
-                bonus = y_df['Bonus to resident'].sum()
-                exp = ye_df[['Commission', 'Expense']].sum().sum()
-                # 15% 提成逻辑
-                payroll = y_df[(y_df['Payroll'] == 'FALSE') & (y_df['Received'] == 'TRUE')]['Received Commission'].sum() * 0.15
-                total_val = rev - bonus - exp - payroll
-    
-            summary_data.append({"Year": str(y), "Value": total_val})
-    
-        # --- 渲染年度对比柱状图 ---
-        if summary_data:
-            plot_df = pd.DataFrame(summary_data)
+            # 统一转换时间字段
+            y_df['MoveIn_Q'] = pd.to_datetime(y_df['入住时间'], errors='coerce').dt.quarter
+            y_df['Rec_Date'] = pd.to_datetime(y_df['Receive date'], errors='coerce')
+            y_df['Rec_Q'] = y_df['Rec_Date'].dt.quarter
             
-            fig_comp = px.bar(
-                plot_df, 
-                x='Year', 
-                y='Value', 
-                color='Year',
-                text_auto=',.0f',
-                title=f"{selected_label}: 年度总量对比",
-                color_discrete_sequence=px.colors.qualitative.Set2
+            # 支出表利用你新增的两列
+            ye_df['Exp_Q'] = pd.to_numeric(ye_df['Season'], errors='coerce') 
+            ye_df['CF_Date'] = pd.to_datetime(ye_df['Cashflow'], errors='coerce') # 现金流日期
+            ye_df['CF_Q'] = ye_df['CF_Date'].dt.quarter # 现金流季度
+    
+            # --- 2. 核心计算逻辑 ---
+            if selected_label == "Realized Net Income":
+                y_df_filtered = y_df[y_df['MoveIn_Q'].isin(selected_quarters)]
+                ye_df_filtered = ye_df[ye_df['Exp_Q'].isin(selected_quarters)]
+                rev = y_df_filtered[y_df_filtered['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum()
+                bonus = y_df_filtered.groupby('MoveIn_Q')['Bonus to resident'].sum()
+                payroll = y_df_filtered[y_df_filtered['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum() * 0.15
+                fixed_exp = ye_df_filtered.groupby('Exp_Q')['Amount'].sum()
+                q_series = rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0)
+    
+            elif selected_label == "Actual Cash Flow":
+                # 【现金口径】按钱实际进出的季度对齐
+                y_df_filtered = y_df[y_df['Rec_Q'].isin(selected_quarters)]
+                ye_df_filtered = ye_df[ye_df['CF_Q'].isin(selected_quarters)]
+                
+                cash_in = y_df_filtered.groupby('Rec_Q')['Received Commission'].sum()
+                cash_out = ye_df_filtered.groupby('CF_Q')['Amount'].sum()
+                
+                q_series = cash_in.fillna(0) - cash_out.fillna(0)
+    
+            # --- 3. 结果汇总 ---
+            q_df = q_series.reset_index()
+            q_df.columns = ['Quarter', 'Value']
+            # 确保只显示选中的季度
+            full_q = pd.DataFrame({'Quarter': selected_quarters})
+            q_df = full_q.merge(q_df, on='Quarter', how='left').fillna(0)
+            q_df['Year'] = str(y)
+            q_df['Quarter_Label'] = q_df['Quarter'].apply(lambda x: f"Q{int(x)}")
+            
+            compare_list.append(q_df)
+    
+        # --- 4. 绘图 ---
+        if compare_list:
+            plot_data = pd.concat(compare_list).sort_values(['Quarter', 'Year'])
+            
+            fig = px.bar(
+                plot_data, x='Quarter_Label', y='Value', color='Year',
+                barmode='group', text_auto=',.0f',
+                title=f"📅 {selected_label} 年度季度对比",
+                color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"} # 不同深度的蓝色
             )
-            
-            fig_comp.update_layout(
-                showlegend=False,
-                height=400,
-                yaxis_title=selected_label,
-                xaxis_title="年份"
-            )
-            
-            st.plotly_chart(fig_comp, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
     
-            # 加上一个增长率百分比提示
-            if len(summary_data) >= 2:
-                v1, v2 = summary_data[0]['Value'], summary_data[1]['Value']
-                if v1 != 0:
-                    growth = ((v2 - v1) / v1) * 100
-                    st.metric(label=f"从 {summary_data[0]['Year']} 到 {summary_data[1]['Year']} 的增长率", 
-                              value=f"{v2:,.2f}", 
-                              delta=f"{growth:.1f}%")
-                
+    # ==========================================
+    # 模式 C: Projection (未来现金流预测)
+    # ==========================================
+    elif st.session_state.view_mode == 'Projection':
+        plot_df = get_processed_df(df_all_data)
+        plot_df['Temp_Date'] = pd.to_datetime(plot_df['Forecast_Month'] + "-01")
+        
+        # 过滤：只看今天及以后的数据
+        projection_df = plot_df[plot_df['Temp_Date'] >= today.replace(day=1)]
+        # 只看待收部分
+        projection_df = projection_df[projection_df['Category'] != "✅ Received"]
+        plot_data = projection_df.groupby(['Forecast_Month', 'Category'])['Commission'].sum().reset_index()
+        fig_proj = px.bar(
+            plot_data, x='Forecast_Month', y='Commission', color='Category',
+            color_discrete_map={"📅 Future Expected": "#AED6F1", "⚠️ Slower than Expected": "#F5B7B1"},
+            text_auto=',.0f', barmode='stack' # 使用 group 模式让对比更明显
+        )
+        fig_proj.update_traces(
+            textposition='inside', 
+            textfont=dict(color="black", size=11),
+            insidetextanchor='middle'
+        )
+        
+        fig_proj.update_layout(
+            xaxis_title="Month (Predicted)",
+            yaxis_title="Pending Amount ($)",
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        
+        st.plotly_chart(fig_proj, use_container_width=True)
+        
+        # 6. 额外补充：预测总额小计
+        total_projected = projection_df['Commission'].sum()
+        overdue_projected = projection_df[projection_df['Category'] == "⚠️ Slower than Expected"]['Commission'].sum()
+        
+        c1, c2 = st.columns(2)
+        c1.metric("未来待收总额", f"${total_projected:,.2f}")
+        c2.metric("其中已逾期/顺延", f"${overdue_projected:,.2f}", delta=f"{(overdue_projected/total_projected)*100:.1f}% of total", delta_color="inverse")
+        
+    else:
+        st.info("💡 目前没有未来的待收记录。")
+    
+    # G. 公寓明细表
+    st.markdown("### 🏘️ Pending Received by Apartment")
+    st.dataframe(plot_df)
+    df_pending_table = plot_df[plot_df['Category'] != "✅ Received"].copy()
+    st.dataframe(df_pending_table)
+    if not df_pending_table.empty:
+        # 2. 聚合计算
+        apt_summary = df_pending_table.groupby('Apartment').agg(
+            Count=('Apartment', 'size'),
+            Pending_Total=('Commission', 'sum'),
+            # 统计那些状态是已入住但 Commission 填了 0 的，或者是还没填金额的
+            Missing_Info=('Commission', lambda x: (pd.to_numeric(x) == 0).sum())
+        ).reset_index().sort_values('Pending_Total', ascending=False)
+    
+        # 3. 渲染表格
+        st.dataframe(
+            apt_summary,
+            column_config={
+                "Apartment": "Apartment Name",
+                "Count": "Unpaid Units",
+                "Pending_Total": st.column_config.NumberColumn("Pending Amount", format="$%,.0f"),
+                "Missing_Info": st.column_config.NumberColumn("Missing $ Data", format="%d")
+            },
+            hide_index=True, 
+            use_container_width=True
+        )
+        
+        # 可选：加一个提示，告诉用户这些钱的总额
+        total_p = apt_summary['Pending_Total'].sum()
+        st.caption(f"☝️ 以上公寓共有 **{len(apt_summary)}** 处待收，总计金额约 **${total_p:,.0f}**")
+    
+    else:
+        st.success(f"🎉 恭喜！所有款项已结清，没有待收项目。")
+            
+if st.session_state.view_mode == 'Comparison':   
+    st.divider()
+
+# 在对比模式下，增加一个维度选择器
+    metrics_map = {
+        "Received Commission ($)": "Received Commission",
+        "Moved in (Rooms)": "Checked-in Count",
+        "Pending Commission ($)": "Pending Commission",
+        "Realized Net Income ($)": "Realized Net Income"
+    }
+    selected_label = st.selectbox("🎯 选择对比指标", options=list(metrics_map.keys()))
+
+    summary_data = []
+
+    for y in selected_years:
+        # 提取该年全部数据
+        y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
+        ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
+
+        # 根据选择计算全年的“一个值”
+        if selected_label == "Received Commission ($)":
+            total_val = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
+            
+        elif selected_label == "Moved in (Rooms)":
+            total_val = len(y_df[y_df['状态'] == "已入住"])
+            
+        elif selected_label == "Pending Commission ($)":
+            total_val = y_df[y_df['Received'] == "FALSE"]['Commission'].sum()
+            
+        elif selected_label == "Realized Net Income ($)":
+            # 全年总收入 - 总返现 - 总支出 - 总工资提成
+            rev = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
+            bonus = y_df['Bonus to resident'].sum()
+            exp = ye_df[['Commission', 'Expense']].sum().sum()
+            # 15% 提成逻辑
+            payroll = y_df[(y_df['Payroll'] == 'FALSE') & (y_df['Received'] == 'TRUE')]['Received Commission'].sum() * 0.15
+            total_val = rev - bonus - exp - payroll
+
+        summary_data.append({"Year": str(y), "Value": total_val})
+
+    # --- 渲染年度对比柱状图 ---
+    if summary_data:
+        plot_df = pd.DataFrame(summary_data)
+        
+        fig_comp = px.bar(
+            plot_df, 
+            x='Year', 
+            y='Value', 
+            color='Year',
+            text_auto=',.0f',
+            title=f"{selected_label}: 年度总量对比",
+            color_discrete_sequence=px.colors.qualitative.Set2
+        )
+        
+        fig_comp.update_layout(
+            showlegend=False,
+            height=400,
+            yaxis_title=selected_label,
+            xaxis_title="年份"
+        )
+        
+        st.plotly_chart(fig_comp, use_container_width=True)
+
+        # 加上一个增长率百分比提示
+        if len(summary_data) >= 2:
+            v1, v2 = summary_data[0]['Value'], summary_data[1]['Value']
+            if v1 != 0:
+                growth = ((v2 - v1) / v1) * 100
+                st.metric(label=f"从 {summary_data[0]['Year']} 到 {summary_data[1]['Year']} 的增长率", 
+                          value=f"{v2:,.2f}", 
+                          delta=f"{growth:.1f}%")
+            
