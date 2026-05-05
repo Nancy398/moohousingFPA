@@ -602,14 +602,11 @@ with tab_apartments:
             st.warning("请至少选择一个季度进行对比")
             st.stop()
         compare_list = []
-        st.dataframe(model.df_curr)
-        st.dataframe(model.df_expense)
+
         for y in selected_years:
             # --- 数据预处理 ---
             y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
             ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
-            st.dataframe(y_df)
-            st.dataframe(ye_df)
     
             # 统一转换时间字段
             y_df['MoveIn_Q'] = pd.to_datetime(y_df['入住时间'], errors='coerce').dt.quarter
@@ -618,8 +615,7 @@ with tab_apartments:
             
             # 支出表利用你新增的两列
             ye_df['Exp_Q'] = pd.to_numeric(ye_df['Season'], errors='coerce') 
-            ye_df['CF_Date'] = pd.to_datetime(ye_df['Cashflow'], errors='coerce') # 现金流日期
-            ye_df['CF_Q'] = ye_df['CF_Date'].dt.quarter # 现金流季度
+            ye_df['CF_Q'] = pd.to_numeric(ye_df['Season'], errors='coerce').fillna(0).astype(int)
     
             # --- 2. 核心计算逻辑 ---
             if selected_label == "Realized Net Income":
@@ -628,17 +624,15 @@ with tab_apartments:
                 rev = y_df_filtered[y_df_filtered['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum()
                 bonus = y_df_filtered.groupby('MoveIn_Q')['Bonus to resident'].sum()
                 payroll = y_df_filtered[y_df_filtered['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum() * 0.15
-                fixed_exp = ye_df_filtered.groupby('Exp_Q')['Amount'].sum()
+                fixed_exp = ye_df_filtered.groupby('Exp_Q')['Expense'].sum()
                 q_series = rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0)
     
             elif selected_label == "Actual Cash Flow":
                 # 【现金口径】按钱实际进出的季度对齐
                 y_df_filtered = y_df[y_df['Rec_Q'].isin(selected_quarters)]
                 ye_df_filtered = ye_df[ye_df['CF_Q'].isin(selected_quarters)]
-                
                 cash_in = y_df_filtered.groupby('Rec_Q')['Received Commission'].sum()
-                cash_out = ye_df_filtered.groupby('CF_Q')['Amount'].sum()
-                
+                cash_out = ye_df_filtered.groupby('CF_Q')['Cashflow'].sum()
                 q_series = cash_in.fillna(0) - cash_out.fillna(0)
     
             # --- 3. 结果汇总 ---
