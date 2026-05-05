@@ -737,7 +737,7 @@ with tab_apartments:
 
         st.markdown("---")
         st.markdown(f"### 📅 {', '.join(map(str, selected_years))} 年度季度全维度对比")
-        is_cash_basis = st.toggle("💸 切换至现金流口径 (Cashflow Basis)", value=False)
+        is_cash_basis = st.toggle("💸Cashflow Basis", value=False)
     
     # 动态定义标签
         label_net = "Net Cashflow ($)" if is_cash_basis else "Realized Net Income ($)"
