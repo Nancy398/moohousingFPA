@@ -605,7 +605,7 @@ with tab_apartments:
             ni_per_room = net_income / rooms if rooms > 0 else 0
     
             summary_data[str(y)] = {
-                "Received & Pending ($)": [
+                "Received Commission($)": [
                     {"Metric": "Received", "Value": received}
                     # {"Metric": "Pending", "Value": pending}
                 ],
