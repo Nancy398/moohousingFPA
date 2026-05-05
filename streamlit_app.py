@@ -582,8 +582,8 @@ with tab_apartments:
         # 模式 B: Comparison (折线图对比)
         # ==========================================
     elif st.session_state.view_mode == 'Comparison':
-        st.markdown("### 📊 年度业绩走势对比 (折线图)")
-        c1, c2, c3 = st.columns([0.4, 0.3, 0.3])
+        # st.markdown("### 📊 年度业绩走势对比 (折线图)")
+        c1, c2= st.columns([0.5, 0.5])
         with c1:
             metrics_map = {
                 "Realized Net Income": "Net_Income",
@@ -591,12 +591,9 @@ with tab_apartments:
             }
             selected_label = st.selectbox("🎯 Select Metrics", options=list(metrics_map.keys()))
         
-        with c3:
+        with c2:
             # 让用户选择对比哪些季度（默认全选）
             selected_quarters = st.multiselect("📅 Select Season", options=[1, 2, 3, 4], default=[1, 2, 3, 4], format_func=lambda x: f"Q{x}")
-            
-        with c2:
-            st.caption(f"Select Year: {', '.join(map(str, selected_years))}")
     
         if not selected_quarters:
             st.warning("请至少选择一个季度进行对比")
@@ -628,7 +625,6 @@ with tab_apartments:
                 q_series = rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0)
     
             elif selected_label == "Actual Cash Flow":
-                # 【现金口径】按钱实际进出的季度对齐
                 y_df_filtered = y_df[y_df['Rec_Q'].isin(selected_quarters)]
                 ye_df_filtered = ye_df[ye_df['CF_Q'].isin(selected_quarters)]
                 cash_in = y_df_filtered.groupby('Rec_Q')['Received Commission'].sum()
