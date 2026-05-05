@@ -642,6 +642,7 @@ with tab_apartments:
             
             df_plot = pd.DataFrame(plot_list)
             df_plot['Year'] = df_plot['Year'].astype(str)
+            st.dataframe(df_plot)
             
             # 绘图逻辑
             fig = px.bar(
