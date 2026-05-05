@@ -655,82 +655,78 @@ with tab_apartments:
             st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("---")
-        st.markdown("### 📋 核心指标汇总对比 (Annual Summary)")
-        
-        # 定义要展示的指标列表
-        summary_metrics = [
-            ("Received Commission ($)", "Received Commission"),
-            ("Moved in (Rooms)", "Checked-in Count"),
-            ("Pending Commission ($)", "Pending Commission"),
-            ("Realized Net Income ($)", "Realized Net Income")
-        ]
-        
-        # 预计算所有指标的数据
-        comparison_results = {}
-        for label, key in summary_metrics:
-            comparison_results[label] = {}
+        st.markdown(f"### 📅 {', '.join(map(str, selected_years))} 年度季度全维度对比")
+    
+    # 1. 定义要对比的四个核心指标及其计算逻辑
+        comp_metrics = {
+            "Received Commission ($)": "Received",
+            "Moved in (Rooms)": "Rooms",
+            "Pending Commission ($)": "Pending",
+            "Realized Net Income ($)": "Net"
+        }
+    
+        # 2. 创建 2x2 布局
+        row1_col1, row1_col2 = st.columns(2)
+        row2_col1, row2_col2 = st.columns(2)
+        chart_containers = [row1_col1, row1_col2, row2_col1, row2_col2]
+    
+        # 3. 循环计算并绘图
+        for (label, key), container in zip(comp_metrics.items(), chart_containers):
+            all_q_data = []
+            
             for y in selected_years:
-                # 复用之前的计算逻辑，但这里计算全年总和
+                # 提取数据
                 y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
                 ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
-                
-                # 统一预处理季度/Season
+    
+                # 预处理季度
                 y_df['MoveIn_Q'] = pd.to_datetime(y_df['入住时间'], errors='coerce').dt.quarter
                 y_df['Rec_Q'] = pd.to_datetime(y_df['Receive date'], errors='coerce').dt.quarter
                 ye_df['Season_Int'] = pd.to_numeric(ye_df['Season'], errors='coerce').fillna(0).astype(int)
-        
-                # 根据所选模式（权责或现金）计算总量
-                if selected_label == "Realized Net Income (权责发生制)":
-                    # 权责口径总量
-                    rev = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
-                    bonus = y_df['Bonus to resident'].sum()
-                    payroll = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum() * 0.15
-                    fixed_exp = ye_df['Expense'].sum()
-                    val = rev - bonus - payroll - fixed_exp
-                else:
-                    # 现金流口径或其他简单指标汇总
-                    if key == "Received Commission":
-                        val = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
-                    elif key == "Checked-in Count":
-                        val = len(y_df[y_df['状态'] == "已入住"])
-                    elif key == "Pending Commission":
-                        val = y_df[y_df['Received'] == "FALSE"]['Commission'].sum()
-                    elif key == "Realized Net Income":
-                        # 默认显示权责净利总量
-                        rev = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
-                        bonus = y_df['Bonus to resident'].sum()
-                        payroll = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum() * 0.15
-                        fixed_exp = ye_df['Expense'].sum()
-                        val = rev - bonus - payroll - fixed_exp
-                
-                comparison_results[label][y] = val
-        
-        # --- 渲染 Metric Cards ---
-        # 为每个指标创建一行，展示不同年份的对比
-        for label, data in comparison_results.items():
-            cols = st.columns(len(selected_years) + 1) # 多出一列显示增长率
-            cols[0].markdown(f"**{label}**")
-            
-            vals = list(data.values())
-            years = list(data.keys())
-            
-            for i, y in enumerate(years):
-                cols[i+1].metric(label=f"{y} Total", value=f"{vals[i]:,.0f}")
-            
-            # 如果有两个年份，自动计算增长率 (Delta)
-            if len(vals) == 2:
-                growth = ((vals[1] - vals[0]) / vals[0] * 100) if vals[0] != 0 else 0
-                color = "normal" if growth >= 0 else "inverse"
-                st.caption(f"📈 {years[1]} vs {years[0]} 增长率: **{growth:.1f}%**")
-        
-        # --- 或者使用更整洁的 DataFrame 展示 ---
-        with st.expander("查看详细数据对比表"):
-            df_summary = pd.DataFrame(comparison_results).T
-            st.dataframe(df_summary.style.format("{:,.2f}"), use_container_width=True)
-            
-            # ==========================================
-            # 模式 C: Projection (未来现金流预测)
-            # ==========================================
+    
+                # --- 根据指标 key 计算季度序列 ---
+                if key == "Received":
+                    # 按回款日期口径
+                    q_series = y_df[y_df['Received'] == "TRUE"].groupby('Rec_Q')['Received Commission'].sum()
+                elif key == "Rooms":
+                    # 按入住日期口径
+                    q_series = y_df[y_df['状态'] == "已入住"].groupby('MoveIn_Q').size()
+                elif key == "Pending":
+                    # 按入住日期口径看待收
+                    q_series = y_df[y_df['Received'] == "FALSE"].groupby('MoveIn_Q')['Commission'].sum()
+                elif key == "Net":
+                    # 权责发生制净利
+                    rev = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum()
+                    bonus = y_df.groupby('MoveIn_Q')['Bonus to resident'].sum()
+                    payroll = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum() * 0.15
+                    fixed_exp = ye_df.groupby('Season_Int')['Amount'].sum()
+                    q_series = rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0)
+    
+                # 补全 Q1-Q4
+                q_df = q_series.reset_index()
+                q_df.columns = ['Quarter', 'Value']
+                q_df = pd.DataFrame({'Quarter': [1, 2, 3, 4]}).merge(q_df, on='Quarter', how='left').fillna(0)
+                q_df['Year'] = str(y)
+                q_df['Quarter_Label'] = q_df['Quarter'].apply(lambda x: f"Q{int(x)}")
+                all_q_data.append(q_df)
+    
+            # 4. 在指定列绘制图表
+            if all_q_data:
+                plot_df = pd.concat(all_q_data)
+                fig = px.bar(
+                    plot_df, x='Quarter_Label', y='Value', color='Year',
+                    barmode='group', text_auto=',.0f',
+                    title=f"按季度: {label}",
+                    color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"},
+                    height=350
+                )
+                fig.update_traces(textposition='outside', cliponaxis=False)
+                fig.update_layout(
+                    margin=dict(l=20, r=20, t=40, b=20),
+                    xaxis_title=None, yaxis_title=None,
+                    showlegend=True if key == "Received" else False # 只在第一个图显示图例，节省空间
+                )
+                container.plotly_chart(fig, use_container_width=True)
     elif st.session_state.view_mode == 'Projection':
         plot_df = get_processed_df(df_all_data)
         plot_df['Temp_Date'] = pd.to_datetime(plot_df['Forecast_Month'] + "-01")
