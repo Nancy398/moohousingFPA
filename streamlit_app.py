@@ -663,6 +663,7 @@ with tab_apartments:
             "Moved in (Rooms)": "Rooms",
             "Pending Commission ($)": "Pending",
             "Realized Net Income ($)": "Net"
+            "Income Per Room ($)": "Ave"
         }
     
         # 2. 创建 2x2 布局
@@ -699,8 +700,17 @@ with tab_apartments:
                     rev = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum()
                     bonus = y_df.groupby('MoveIn_Q')['Bonus to resident'].sum()
                     payroll = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum() * 0.15
-                    fixed_exp = ye_df.groupby('Season_Int')['Amount'].sum()
+                    fixed_exp = ye_df.groupby('Season_Int')['Expense'].sum()
                     q_series = rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0)
+                elif key == "Ave":
+                    rev = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum()
+                    bonus = y_df.groupby('MoveIn_Q')['Bonus to resident'].sum()
+                    payroll = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum() * 0.15
+                    fixed_exp = ye_df.groupby('Season_Int')['Expense'].sum()
+                    move = y_df[y_df['状态'] == "已入住"].groupby('MoveIn_Q').size()
+                    q_series = (rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0))/move
+                    
+                    
     
                 # 补全 Q1-Q4
                 q_df = q_series.reset_index()
