@@ -737,14 +737,19 @@ with tab_apartments:
 
         st.markdown("---")
         st.markdown(f"### 📅 {', '.join(map(str, selected_years))} 年度季度全维度对比")
+        is_cash_basis = st.toggle("💸 切换至现金流口径 (Cashflow Basis)", value=False)
+    
+    # 动态定义标签
+        label_net = "Net Cashflow ($)" if is_cash_basis else "Realized Net Income ($)"
+        label_ave = "Cashflow Per Unit ($)" if is_cash_basis else "Income Per Room ($)"
     
     # 1. 定义要对比的四个核心指标及其计算逻辑
         comp_metrics = {
             "Received Commission ($)": "Received",
             "Moved in (Rooms)": "Rooms",
             "Pending Commission ($)": "Pending",
-            "Realized Net Income ($)": "Net",
-            "Income Per Room ($)": "Ave"
+            label_net: "Net",
+            label_ave: "Ave"
         }
     
         # 2. 创建 2x2 布局
@@ -768,54 +773,60 @@ with tab_apartments:
     
                 # --- 根据指标 key 计算季度序列 ---
                 if key == "Received":
-                    # 按回款日期口径
-                    q_series = y_df[y_df['Received'] == "TRUE"].groupby('Rec_Q')['Received Commission'].sum()
+                    if is_cash_basis:
+                        # 现金模式：按实际收到钱的季度聚合
+                        q_series = y_df[y_df['Received'] == "TRUE"].groupby('Rec_Q')['Received Commission'].sum()
+                    else:
+                        # 权责模式：按入住季度统计已到账金额
+                        q_series = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum()
+                
                 elif key == "Rooms":
-                    # 按入住日期口径
-                    q_series = y_df[y_df['状态'] == "已入住"].groupby('MoveIn_Q').size()
+                    # 房间数始终按业务发生的入住时间算
+                    temp_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
+                    temp_df['MoveIn_Q'] = pd.to_datetime(temp_df['入住时间'], errors='coerce').dt.quarter
+                    q_series = temp_df[temp_df['状态'] == "已入住"].groupby('MoveIn_Q').size()
+                
                 elif key == "Pending":
-                    # 按入住日期口径看待收
-                    q_series = y_df[y_df['Received'] == "FALSE"].groupby('MoveIn_Q')['Commission'].sum()
-                elif key == "Net":
-                    # 权责发生制净利
-                    rev = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum()
-                    bonus = y_df.groupby('MoveIn_Q')['Bonus to resident'].sum()
-                    payroll = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum() * 0.15
-                    fixed_exp = ye_df.groupby('Season_Int')['Expense'].sum()
-                    q_series = rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0)
-                elif key == "Ave":
-                    rev = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum()
-                    bonus = y_df.groupby('MoveIn_Q')['Bonus to resident'].sum()
-                    payroll = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum() * 0.15
-                    fixed_exp = ye_df.groupby('Season_Int')['Expense'].sum()
-                    move = y_df[y_df['状态'] == "已入住"].groupby('MoveIn_Q').size()
-                    q_series = (rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0))/move
-                    
-                # 补全 Q1-Q4
+                    temp_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
+                    temp_df['MoveIn_Q'] = pd.to_datetime(temp_df['入住时间'], errors='coerce').dt.quarter
+                    q_series = temp_df[temp_df['Received'] == "FALSE"].groupby('MoveIn_Q')['Commission'].sum()
+                
+                elif key == "Net" or key == "Ave":
+                    if is_cash_basis:
+                        rev = y_df[y_df['Received'] == "TRUE"].groupby('Rec_Q')['Received Commission'].sum()
+                        fixed_exp = ye_df.groupby('Season_Int')['Cashflow'].sum()
+                        net_q = rev.fillna(0) - fixed_exp.fillna(0)
+                    else:
+                        rev = y_df[y_df['Received'] == "TRUE"].groupby('MoveIn_Q')['Received Commission'].sum()
+                        bonus = y_df.groupby('MoveIn_Q')['Bonus to resident'].sum()
+                        payroll = ye_df.groupby('Season_Int')['Commission'].sum()
+                        fixed_exp = ye_df.groupby('Season_Int')['Expense'].sum()
+                        net_q = rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0)
+                    if key == "Net":
+                        q_series = net_q
+                    else:
+                        temp_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
+                        temp_df['MoveIn_Q'] = pd.to_datetime(temp_df['入住时间'], errors='coerce').dt.quarter
+                        move_count = temp_df[temp_df['状态'] == "已入住"].groupby('MoveIn_Q').size()
+                        q_series = net_q / move_count.replace(0, 1)
+    
+                # --- 补全数据并生成 Label ---
                 q_df = q_series.reset_index()
                 q_df.columns = ['Quarter', 'Value']
-                q_df = pd.DataFrame({'Quarter': [1, 2, 3, 4]}).merge(q_df, on='Quarter', how='left').fillna(0)
+                q_df = pd.DataFrame({'Quarter': [1,2,3,4]}).merge(q_df, on='Quarter', how='left').fillna(0)
                 q_df['Year'] = str(y)
                 q_df['Quarter_Label'] = q_df['Quarter'].apply(lambda x: f"Q{int(x)}")
                 all_q_data.append(q_df)
     
-            # 4. 在指定列绘制图表
+            # --- 绘图部分 (保持不变) ---
             if all_q_data:
                 plot_df = pd.concat(all_q_data)
-                fig = px.bar(
-                    plot_df, x='Quarter_Label', y='Value', color='Year',
-                    barmode='group', text_auto=',.0f',
-                    title=f"按季度: {label}",
-                    color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"},
-                    height=350
-                )
-                fig.update_traces(textposition='outside', cliponaxis=False)
-                fig.update_layout(
-                    margin=dict(l=20, r=20, t=40, b=20),
-                    xaxis_title=None, yaxis_title=None,
-                    showlegend=True if key == "Received" else False # 只在第一个图显示图例，节省空间
-                )
-                container.plotly_chart(fig, use_container_width=True)
+                fig_q = px.bar(plot_df, x='Quarter_Label', y='Value', color='Year', barmode='group', text_auto=',.0f',
+                               title=label, color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"}, height=320)
+                fig_q.update_traces(textposition='outside', cliponaxis=False)
+                fig_q.update_layout(xaxis=dict(type='category'), xaxis_title=None, yaxis_title=None, 
+                                    showlegend=True if key == "Received" else False, margin=dict(l=10, r=10, t=40, b=10))
+                container.plotly_chart(fig_q, use_container_width=True)
             
     elif st.session_state.view_mode == 'Projection':
         plot_df = get_processed_df(df_all_data)
