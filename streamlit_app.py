@@ -621,13 +621,12 @@ with tab_apartments:
             }
     
         # 2. 创建 2x2 布局
-        r1_c1, r1_c2 = st.columns(2)
-        r2_c1, r2_c2 = st.columns(2)
+        r1_c1, r1_c2, r1_c3,r1_c4 = st.columns(4)
         tiles = [
             (r1_c1, "Received Commission($)", "group"), # 这个图包含两个指标对比
             (r1_c2, "Moved in (Rooms)", "group"),
-            (r2_c1, "Realized Net Income ($)", "group"),
-            (r2_c2, "Efficiency (NI per Room)", "group")
+            (r1_c3, "Realized Net Income ($)", "group"),
+            (r1_c4, "Efficiency (NI per Room)", "group")
         ]
     
         # 3. 循环绘图
@@ -649,7 +648,7 @@ with tab_apartments:
                 x='Year', # 第一个图按指标分，其他按年份分
                 y='Value', 
                 # color='Year',
-                # barmode=b_mode,
+                barmode=b_mode,
                 text_auto=',.0f',
                 title=title,
                 color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"},
