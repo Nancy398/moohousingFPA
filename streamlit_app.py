@@ -638,8 +638,7 @@ with tab_apartments:
             full_q = pd.DataFrame({'Quarter': selected_quarters})
             q_df = full_q.merge(q_df, on='Quarter', how='left').fillna(0)
             q_df['Year'] = str(y)
-            q_df['Quarter_Label'] = q_df['Quarter'].apply(lambda x: f"Q{int(x)}")
-            
+            q_df['Quarter_Label'] = q_df['Quarter'].apply(lambda x: f"Q{int(x)}")   
             compare_list.append(q_df)
     
         # --- 4. 绘图 ---
@@ -667,9 +666,9 @@ with tab_apartments:
         }
     
         # 2. 创建 2x2 布局
-        row1_col1, row1_col2 = st.columns(2)
+        row1_col1, row1_col2, row1_col3 = st.columns(3)
         row2_col1, row2_col2 = st.columns(2)
-        chart_containers = [row1_col1, row1_col2, row2_col1, row2_col2]
+        chart_containers = [row1_col1, row1_col2,row1_col3, row2_col1, row2_col2]
     
         # 3. 循环计算并绘图
         for (label, key), container in zip(comp_metrics.items(), chart_containers):
