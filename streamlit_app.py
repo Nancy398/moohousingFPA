@@ -608,7 +608,7 @@ with tab_apartments:
             rev = val_received
             bonus = y_df['Bonus to resident'].sum()
             payroll = val_received * 0.15
-            fixed_exp = ye_df['Amount'].sum()
+            fixed_exp = ye_df['Expense'].sum()
             val_net = rev - bonus - payroll - fixed_exp
             # 5. Ave (NI per Room)
             val_ave = val_net / val_rooms if val_rooms > 0 else 0
