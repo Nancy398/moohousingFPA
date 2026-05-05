@@ -329,6 +329,8 @@ with tab_apartments:
             # 2. 支出类
             self.paid_comm_curr = dfe_filtered['Commission'].sum()
             self.other_expense_curr = dfe_filtered['Expense'].sum()
+            self.exp_quarter =  dfe_filtered['Season']
+            self.exp_cashflow = dfe_filtered['Cashflow'].sum()
             self.bonus_residents_curr = df['Bonus to resident'].sum()
             self.total_expense = self.other_expense_curr + self.bonus_residents_curr
             
@@ -755,6 +757,8 @@ if st.session_state.view_mode == 'Comparison':
         # 提取该年全部数据
         y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
         ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
+        st.dataframe(y_df)
+        st.dataframe(ye_df)
 
         # 根据选择计算全年的“一个值”
         if selected_label == "Received Commission ($)":
