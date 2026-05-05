@@ -641,7 +641,7 @@ with tab_apartments:
                     })
             
             df_plot = pd.DataFrame(plot_list)
-            
+            df_plot['Year'] = df_plot['Year'].astype(str)
             # 绘图逻辑
             fig = px.bar(
                 df_plot, 
@@ -654,7 +654,7 @@ with tab_apartments:
                 color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"},
                 height=300
             )
-            
+            fig.update_xaxes(type='category')
             fig.update_traces(textposition='outside', cliponaxis=False)
             fig.update_layout(
                 xaxis_title=None, yaxis_title=None,
