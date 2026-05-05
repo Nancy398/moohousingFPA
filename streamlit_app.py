@@ -582,7 +582,85 @@ with tab_apartments:
         # 模式 B: Comparison (折线图对比)
         # ==========================================
     elif st.session_state.view_mode == 'Comparison':
-        # st.markdown("### 📊 年度业绩走势对比 (折线图)")
+        这个想法非常棒！将所有核心指标放在一个大的分组柱状图（Grouped Bar Chart）中，可以让你一眼看出公司整体规模和利润水平在年度间的全方位跨越。
+
+由于不同指标的量级不同（例如：房间数是几十，而佣金是几万），我们通常会遇到“小柱子看不见”的问题。但在年度复盘时，这种对比能非常直观地展示“增产是否增收”。
+
+核心实现代码：多指标年度横向对比
+将这段代码放在 Comparison 模式的最上方：
+
+Python
+elif st.session_state.view_mode == 'Comparison':
+    st.markdown("### 🏆 年度核心指标综合对比 (Key Metrics Overview)")
+    metrics_display = {
+        "Received Commission ($)": "Received",
+        "Moved in (Rooms)": "Rooms",
+        "Pending Commission ($)": "Pending",
+        "Realized Net Income ($)": "Net",
+        "Income Per Room ($)": "Ave"
+    }
+    
+    total_comp_list = []
+    for y in selected_years:
+        # 获取该年数据
+        y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
+        ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
+        
+        # --- 计算各项总值 ---
+        # 1. Received
+        val_received = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
+        # 2. Rooms
+        val_rooms = len(y_df[y_df['状态'] == "已入住"])
+        # 3. Pending
+        val_pending = y_df[y_df['Received'] == "FALSE"]['Commission'].sum()
+        # 4. Net (权责发生制：实收 - 返现 - 提成预扣15% - 固定支出)
+        rev = val_received
+        bonus = y_df['Bonus to resident'].sum()
+        payroll = val_received * 0.15
+        fixed_exp = ye_df['Amount'].sum()
+        val_net = rev - bonus - payroll - fixed_exp
+        # 5. Ave (NI per Room)
+        val_ave = val_net / val_rooms if val_rooms > 0 else 0
+        
+        # 组装数据
+        year_data = [
+            {"Metric": "Received Comm.", "Value": val_received, "Year": str(y)},
+            {"Metric": "Rooms Count", "Value": val_rooms, "Year": str(y)},
+            {"Metric": "Pending Comm.", "Value": val_pending, "Year": str(y)},
+            {"Metric": "Net Income", "Value": val_net, "Year": str(y)},
+            {"Metric": "NI per Room", "Value": val_ave, "Year": str(y)}
+        ]
+        total_comp_list.extend(year_data)
+
+    # 2. 转换为 DataFrame 并绘图
+    df_big_comp = pd.DataFrame(total_comp_list)
+    
+    fig_big = px.bar(
+        df_big_comp, 
+        x='Metric', 
+        y='Value', 
+        color='Year',
+        barmode='group',
+        text_auto=',.0f',
+        title="年度核心指标概览 (Annual Performance Comparison)",
+        color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"},
+        height=500
+    )
+
+    # 优化：数值标签放在柱子上方，并支持负数显示
+    fig_big.update_traces(textposition='outside', cliponaxis=False)
+    
+    # 优化：因为指标单位不同（有钱有数），去掉Y轴统一标签，让用户看柱子顶部的数字
+    fig_big.update_layout(
+        yaxis_title=None,
+        xaxis_title=None,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(t=80)
+    )
+
+    st.plotly_chart(fig_big, use_container_width=True)
+    st.divider()
+        st.markdown("### 📊 季度业绩走势对比")
         c1, c2= st.columns([0.5, 0.5])
         with c1:
             metrics_map = {
@@ -734,6 +812,7 @@ with tab_apartments:
                     showlegend=True if key == "Received" else False # 只在第一个图显示图例，节省空间
                 )
                 container.plotly_chart(fig, use_container_width=True)
+            
     elif st.session_state.view_mode == 'Projection':
         plot_df = get_processed_df(df_all_data)
         plot_df['Temp_Date'] = pd.to_datetime(plot_df['Forecast_Month'] + "-01")
@@ -774,110 +853,4 @@ with tab_apartments:
     else:
         st.info("💡 目前没有未来的待收记录。")
     
-    # G. 公寓明细表
-    # st.markdown("### 🏘️ Pending Received by Apartment")
-    # df_pending_table = plot_df[plot_df['Category'] != "✅ Received"].copy()
-    # st.dataframe(df_pending_table)
-    # if not df_pending_table.empty:
-    #     # 2. 聚合计算
-    #     apt_summary = df_pending_table.groupby('Apartment').agg(
-    #         Count=('Apartment', 'size'),
-    #         Pending_Total=('Commission', 'sum'),
-    #         # 统计那些状态是已入住但 Commission 填了 0 的，或者是还没填金额的
-    #         Missing_Info=('Commission', lambda x: (pd.to_numeric(x) == 0).sum())
-    #     ).reset_index().sort_values('Pending_Total', ascending=False)
-    
-    #     # 3. 渲染表格
-    #     st.dataframe(
-    #         apt_summary,
-    #         column_config={
-    #             "Apartment": "Apartment Name",
-    #             "Count": "Unpaid Units",
-    #             "Pending_Total": st.column_config.NumberColumn("Pending Amount", format="$%,.0f"),
-    #             "Missing_Info": st.column_config.NumberColumn("Missing $ Data", format="%d")
-    #         },
-    #         hide_index=True, 
-    #         use_container_width=True
-    #     )
-        
-    #     # 可选：加一个提示，告诉用户这些钱的总额
-    #     total_p = apt_summary['Pending_Total'].sum()
-    #     st.caption(f"☝️ 以上公寓共有 **{len(apt_summary)}** 处待收，总计金额约 **${total_p:,.0f}**")
-    
-    # else:
-    #     st.success(f"🎉 恭喜！所有款项已结清，没有待收项目。")
-            
-if st.session_state.view_mode == 'Comparison':   
-    st.divider()
-
-# 在对比模式下，增加一个维度选择器
-    metrics_map = {
-        "Received Commission ($)": "Received Commission",
-        "Moved in (Rooms)": "Checked-in Count",
-        "Pending Commission ($)": "Pending Commission",
-        "Realized Net Income ($)": "Realized Net Income"
-    }
-    selected_label = st.selectbox("🎯 选择对比指标", options=list(metrics_map.keys()))
-
-    summary_data = []
-
-    for y in selected_years:
-        # 提取该年全部数据
-        y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
-        ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
-        st.dataframe(y_df)
-        st.dataframe(ye_df)
-
-        # 根据选择计算全年的“一个值”
-        if selected_label == "Received Commission ($)":
-            total_val = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
-            
-        elif selected_label == "Moved in (Rooms)":
-            total_val = len(y_df[y_df['状态'] == "已入住"])
-            
-        elif selected_label == "Pending Commission ($)":
-            total_val = y_df[y_df['Received'] == "FALSE"]['Commission'].sum()
-            
-        elif selected_label == "Realized Net Income ($)":
-            # 全年总收入 - 总返现 - 总支出 - 总工资提成
-            rev = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
-            bonus = y_df['Bonus to resident'].sum()
-            exp = ye_df[['Commission', 'Expense']].sum().sum()
-            # 15% 提成逻辑
-            payroll = y_df[(y_df['Payroll'] == 'FALSE') & (y_df['Received'] == 'TRUE')]['Received Commission'].sum() * 0.15
-            total_val = rev - bonus - exp - payroll
-
-        summary_data.append({"Year": str(y), "Value": total_val})
-
-    # --- 渲染年度对比柱状图 ---
-    if summary_data:
-        plot_df = pd.DataFrame(summary_data)
-        
-        fig_comp = px.bar(
-            plot_df, 
-            x='Year', 
-            y='Value', 
-            color='Year',
-            text_auto=',.0f',
-            title=f"{selected_label}: 年度总量对比",
-            color_discrete_sequence=px.colors.qualitative.Set2
-        )
-        
-        fig_comp.update_layout(
-            showlegend=False,
-            height=400,
-            yaxis_title=selected_label,
-            xaxis_title="年份"
-        )
-        
-        st.plotly_chart(fig_comp, use_container_width=True)
-
-        # 加上一个增长率百分比提示
-        if len(summary_data) >= 2:
-            v1, v2 = summary_data[0]['Value'], summary_data[1]['Value']
-            if v1 != 0:
-                growth = ((v2 - v1) / v1) * 100
-                st.metric(label=f"从 {summary_data[0]['Year']} 到 {summary_data[1]['Year']} 的增长率", 
-                          value=f"{v2:,.2f}", 
-                          delta=f"{growth:.1f}%")
-            
+  
