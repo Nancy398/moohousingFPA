@@ -606,8 +606,8 @@ with tab_apartments:
     
             summary_data[str(y)] = {
                 "Received & Pending ($)": [
-                    {"Metric": "Received", "Value": received},
-                    {"Metric": "Pending", "Value": pending}
+                    {"Metric": "Received", "Value": received}
+                    # {"Metric": "Pending", "Value": pending}
                 ],
                 "Moved in (Rooms)": [
                     {"Metric": "Rooms Count", "Value": rooms}
@@ -624,7 +624,7 @@ with tab_apartments:
         r1_c1, r1_c2 = st.columns(2)
         r2_c1, r2_c2 = st.columns(2)
         tiles = [
-            (r1_c1, "Received & Pending ($)", "group"), # 这个图包含两个指标对比
+            (r1_c1, "Received Commission($)", "group"), # 这个图包含两个指标对比
             (r1_c2, "Moved in (Rooms)", "group"),
             (r2_c1, "Realized Net Income ($)", "group"),
             (r2_c2, "Efficiency (NI per Room)", "group")
@@ -646,10 +646,10 @@ with tab_apartments:
             # 绘图逻辑
             fig = px.bar(
                 df_plot, 
-                x='Label' if title == "Received & Pending ($)" else 'Year', # 第一个图按指标分，其他按年份分
+                x='Year' # 第一个图按指标分，其他按年份分
                 y='Value', 
                 color='Year',
-                barmode=b_mode,
+                # barmode=b_mode,
                 text_auto=',.0f',
                 title=title,
                 color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"},
