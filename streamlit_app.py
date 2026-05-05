@@ -635,14 +635,12 @@ with tab_apartments:
             for y in selected_years:
                 for item in summary_data[str(y)][title]:
                     plot_list.append({
-                        "Year": y,
+                        "Year": str(y),
                         "Label": item["Metric"],
                         "Value": item["Value"]
                     })
             
             df_plot = pd.DataFrame(plot_list)
-            df_plot['Year'] = df_plot['Year'].astype(str)
-            st.dataframe(df_plot)
             
             # 绘图逻辑
             fig = px.bar(
