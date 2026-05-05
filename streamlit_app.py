@@ -652,6 +652,18 @@ with tab_apartments:
                 title=f"📅 {selected_label} 年度季度对比",
                 color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"} # 不同深度的蓝色
             )
+            fig.update_traces(
+                textposition='outside', 
+                cliponaxis=False  # 确保数值很高时不会被图表边缘切掉
+            )
+    
+            # 可选：如果你希望数值离柱子顶端有一点间距，或者调整字体大小
+            fig.update_layout(
+                uniformtext_minsize=8, 
+                uniformtext_mode='hide',
+                yaxis=dict(range=[0, plot_data['Value'].max() * 1.15]) # 留出顶部空间给数字
+            )
+    
             st.plotly_chart(fig, use_container_width=True)
     
     # ==========================================
