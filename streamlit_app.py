@@ -648,7 +648,7 @@ with tab_apartments:
                 x='Year', # 第一个图按指标分，其他按年份分
                 y='Value', 
                 color='Year',
-                barmode=b_mode,
+                barmode="group",
                 text_auto=',.0f',
                 title=title,
                 color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"},
