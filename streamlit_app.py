@@ -603,11 +603,13 @@ with tab_apartments:
             st.stop()
         compare_list = []
         st.dataframe(model.df_curr)
-
+        st.dataframe(model.df_expense)
         for y in selected_years:
             # --- 数据预处理 ---
             y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
             ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
+            st.dataframe(y_df)
+            st.dataframe(ye_df)
     
             # 统一转换时间字段
             y_df['MoveIn_Q'] = pd.to_datetime(y_df['入住时间'], errors='coerce').dt.quarter
