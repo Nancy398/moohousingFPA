@@ -598,7 +598,7 @@ with tab_apartments:
             # 净利计算逻辑 (权责发生制)
             bonus = y_df['Bonus to resident'].sum()
             payroll = received * 0.15
-            fixed_exp = ye_df['Amount'].sum()
+            fixed_exp = ye_df['Expense'].sum()
             net_income = received - bonus - payroll - fixed_exp
             
             # 效率计算
