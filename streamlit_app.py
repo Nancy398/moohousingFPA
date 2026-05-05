@@ -582,74 +582,88 @@ with tab_apartments:
         # 模式 B: Comparison (折线图对比)
         # ==========================================
     elif st.session_state.view_mode == 'Comparison':
-        st.markdown("### 🏆 年度核心指标综合对比 (Key Metrics Overview)")
-        metrics_display = {
-            "Received Commission ($)": "Received",
-            "Moved in (Rooms)": "Rooms",
-            "Pending Commission ($)": "Pending",
-            "Realized Net Income ($)": "Net",
-            "Income Per Room ($)": "Ave"
-        }
-        
-        total_comp_list = []
+        st.markdown("### 🏆 年度核心指标综合对比 (Annual Summary)")
+
+    # 1. 预计算所有指标的总量
+        summary_data = {}
         for y in selected_years:
-            # 获取该年数据
             y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
             ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
+    
+            # 计算基础值
+            rooms = len(y_df[y_df['状态'] == "已入住"])
+            received = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
+            pending = y_df[y_df['Received'] == "FALSE"]['Commission'].sum()
             
-            # --- 计算各项总值 ---
-            # 1. Received
-            val_received = y_df[y_df['Received'] == "TRUE"]['Received Commission'].sum()
-            # 2. Rooms
-            val_rooms = len(y_df[y_df['状态'] == "已入住"])
-            # 3. Pending
-            val_pending = y_df[y_df['Received'] == "FALSE"]['Commission'].sum()
-            # 4. Net (权责发生制：实收 - 返现 - 提成预扣15% - 固定支出)
-            rev = val_received
+            # 净利计算逻辑 (权责发生制)
             bonus = y_df['Bonus to resident'].sum()
-            payroll = val_received * 0.15
-            fixed_exp = ye_df['Expense'].sum()
-            val_net = rev - bonus - payroll - fixed_exp
-            # 5. Ave (NI per Room)
-            val_ave = val_net / val_rooms if val_rooms > 0 else 0
+            payroll = received * 0.15
+            fixed_exp = ye_df['Amount'].sum()
+            net_income = received - bonus - payroll - fixed_exp
             
-            # 组装数据
-            year_data = [
-                {"Metric": "Received Comm.", "Value": val_received, "Year": str(y)},
-                {"Metric": "Rooms Count", "Value": val_rooms, "Year": str(y)},
-                {"Metric": "Pending Comm.", "Value": val_pending, "Year": str(y)},
-                {"Metric": "Net Income", "Value": val_net, "Year": str(y)},
-                {"Metric": "NI per Room", "Value": val_ave, "Year": str(y)}
-            ]
-            total_comp_list.extend(year_data)
+            # 效率计算
+            ni_per_room = net_income / rooms if rooms > 0 else 0
     
-        # 2. 转换为 DataFrame 并绘图
-        df_big_comp = pd.DataFrame(total_comp_list)
-        
-        fig_big = px.bar(
-            df_big_comp, 
-            x='Metric', 
-            y='Value', 
-            color='Year',
-            barmode='group',
-            text_auto=',.0f',
-            title="年度核心指标概览 (Annual Performance Comparison)",
-            color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"},
-            height=500
-        )
+            summary_data[str(y)] = {
+                "Received & Pending ($)": [
+                    {"Metric": "Received", "Value": received},
+                    {"Metric": "Pending", "Value": pending}
+                ],
+                "Moved in (Rooms)": [
+                    {"Metric": "Rooms Count", "Value": rooms}
+                ],
+                "Realized Net Income ($)": [
+                    {"Metric": "Net Income", "Value": net_income}
+                ],
+                "Efficiency (NI per Room)": [
+                    {"Metric": "NI per Room", "Value": ni_per_room}
+                ]
+            }
     
-        # 优化：数值标签放在柱子上方，并支持负数显示
-        fig_big.update_traces(textposition='outside', cliponaxis=False)
-        
-        # 优化：因为指标单位不同（有钱有数），去掉Y轴统一标签，让用户看柱子顶部的数字
-        fig_big.update_layout(
-            yaxis_title=None,
-            xaxis_title=None,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            margin=dict(t=80)
-        )
+        # 2. 创建 2x2 布局
+        r1_c1, r1_c2 = st.columns(2)
+        r2_c1, r2_c2 = st.columns(2)
+        tiles = [
+            (r1_c1, "Received & Pending ($)", "group"), # 这个图包含两个指标对比
+            (r1_c2, "Moved in (Rooms)", "group"),
+            (r2_c1, "Realized Net Income ($)", "group"),
+            (r2_c2, "Efficiency (NI per Room)", "group")
+        ]
     
-        st.plotly_chart(fig_big, use_container_width=True)
+        # 3. 循环绘图
+        for col, title, b_mode in tiles:
+            plot_list = []
+            for y in selected_years:
+                for item in summary_data[str(y)][title]:
+                    plot_list.append({
+                        "Year": y,
+                        "Label": item["Metric"],
+                        "Value": item["Value"]
+                    })
+            
+            df_plot = pd.DataFrame(plot_list)
+            
+            # 绘图逻辑
+            fig = px.bar(
+                df_plot, 
+                x='Label' if title == "Received & Pending ($)" else 'Year', # 第一个图按指标分，其他按年份分
+                y='Value', 
+                color='Year',
+                barmode=b_mode,
+                text_auto=',.0f',
+                title=title,
+                color_discrete_map={"2025": "#AED6F1", "2026": "#2E86C1"},
+                height=300
+            )
+            
+            fig.update_traces(textposition='outside', cliponaxis=False)
+            fig.update_layout(
+                xaxis_title=None, yaxis_title=None,
+                showlegend=False,
+                margin=dict(l=20, r=20, t=40, b=20)
+            )
+            col.plotly_chart(fig, use_container_width=True)
+    
         st.divider()
         st.markdown("### 📊 季度业绩走势对比")
         c1, c2= st.columns([0.5, 0.5])
