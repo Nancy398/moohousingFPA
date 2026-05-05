@@ -662,7 +662,7 @@ with tab_apartments:
             "Received Commission ($)": "Received",
             "Moved in (Rooms)": "Rooms",
             "Pending Commission ($)": "Pending",
-            "Realized Net Income ($)": "Net"
+            "Realized Net Income ($)": "Net",
             "Income Per Room ($)": "Ave"
         }
     
@@ -710,8 +710,6 @@ with tab_apartments:
                     move = y_df[y_df['状态'] == "已入住"].groupby('MoveIn_Q').size()
                     q_series = (rev.fillna(0) - bonus.fillna(0) - payroll.fillna(0) - fixed_exp.fillna(0))/move
                     
-                    
-    
                 # 补全 Q1-Q4
                 q_df = q_series.reset_index()
                 q_df.columns = ['Quarter', 'Value']
