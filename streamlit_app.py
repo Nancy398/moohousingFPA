@@ -881,7 +881,7 @@ with tab_apartments:
                 text_auto=',.0f',
                 title=f"📅 {y_val}年度：利润 (NI) vs 现金流 (CF) 对比",
                 # 利润用蓝色系，现金流用绿色系，对比更鲜明
-                color_discrete_map={"Net Income (权责)": "#2E86C1", "Cash Flow (现金)": "#27AE60"}
+                color_discrete_map={"Net Income": "#AED6F1", "Cash Flow": "#2E86C1"}
             )
             
             fig_dual.update_traces(textposition='outside', cliponaxis=False)
