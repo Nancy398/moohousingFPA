@@ -827,6 +827,72 @@ with tab_apartments:
                 fig_q.update_layout(xaxis=dict(type='category'), xaxis_title=None, yaxis_title=None, 
                                     showlegend=True if key == "Received" else False, margin=dict(l=10, r=10, t=40, b=10))
                 container.plotly_chart(fig_q, use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("### 📊 利润 vs 现金流：深度盈余质量分析")
+        
+        # 1. 准备数据
+        ni_vs_cf_list = []
+        
+        for y in selected_years:
+            y_df = model.df_curr[model.df_curr['Year'].astype(str) == str(y)].copy()
+            ye_df = model.df_expense[model.df_expense['Year'].astype(str) == str(y)].copy()
+            
+            # --- 计算所需维度 ---
+            y_df['MoveIn_Q'] = pd.to_datetime(y_df['入住时间'], errors='coerce').dt.quarter
+            y_df['Rec_Q'] = pd.to_datetime(y_df['Receive date'], errors='coerce').dt.quarter
+            ye_df['Season_Int'] = pd.to_numeric(ye_df['Season'], errors='coerce').fillna(0).astype(int)
+            ye_df['CF_Month'] = pd.to_numeric(ye_df['Cashflow'], errors='coerce')
+            ye_df['CF_Q'] = ((ye_df['CF_Month'] - 1) // 3 + 1).fillna(0).astype(int)
+    
+            for q in [1, 2, 3, 4]:
+                # A. 计算该季度的 NI (权责发生制)
+                # 收入看入住 Q，支出看 Season
+                rev_ni = y_df[y_df['MoveIn_Q'] == q]['Received Commission'].sum()
+                bonus_ni = y_df[y_df['MoveIn_Q'] == q]['Bonus to resident'].sum()
+                payroll_ni = ye_df[ye_df['Season_Int'] == q]['Commission'].sum()
+                exp_ni = ye_df[ye_df['Season_Int'] == q]['Expense'].sum()
+                val_ni = rev_ni - bonus_ni - payroll_ni - exp_ni
+                
+                # B. 计算该季度的 Cash Flow (现金流口径)
+                # 收入看回款 Q，支出看 CF_Q
+                rev_cf = y_df[y_df['Rec_Q'] == q]['Received Commission'].sum()
+                bonus_cf = y_df[y_df['Rec_Q'] == q]['Bonus to resident'].sum()
+                exp_cf = ye_df[ye_df['CF_Q'] == q]['Cashflow'].sum()
+                val_cf = rev_cf - bonus_cf - exp_cf
+                
+                ni_vs_cf_list.append({"Year": str(y), "Quarter": f"Q{q}", "Type": "Net Income", "Value": val_ni})
+                ni_vs_cf_list.append({"Year": str(y), "Quarter": f"Q{q}", "Type": "Cash Flow", "Value": val_cf})
+    
+        # 2. 绘图
+        df_compare = pd.DataFrame(ni_vs_cf_list)
+        
+        # 我们可以通过年份进行分面(Facet)，或者通过不同的颜色区分
+        # 这里推荐使用多图并行，或者通过下拉框选择年份看对比
+        for y_val in selected_years:
+            df_year = df_compare[df_compare['Year'] == str(y_val)]
+            
+            fig_dual = px.bar(
+                df_year, 
+                x='Quarter', 
+                y='Value', 
+                color='Type',
+                barmode='group',
+                text_auto=',.0f',
+                title=f"📅 {y_val}年度：利润 (NI) vs 现金流 (CF) 对比",
+                # 利润用蓝色系，现金流用绿色系，对比更鲜明
+                color_discrete_map={"Net Income (权责)": "#2E86C1", "Cash Flow (现金)": "#27AE60"}
+            )
+            
+            fig_dual.update_traces(textposition='outside', cliponaxis=False)
+            fig_dual.update_layout(
+                yaxis_title="Amount ($)",
+                xaxis_title=None,
+                legend_title=None,
+                margin=dict(l=20, r=20, t=50, b=20)
+            )
+            
+            st.plotly_chart(fig_dual, use_container_width=True)
             
     elif st.session_state.view_mode == 'Projection':
         plot_df = get_processed_df(df_all_data)
