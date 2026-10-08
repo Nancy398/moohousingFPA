@@ -10,3 +10,7 @@ gspread
 oauth2client
 datetime
 gspread_dataframe
+io
+Decimal, InvalidOperation
+canvas
+letter
