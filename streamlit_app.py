@@ -10,6 +10,102 @@ import gspread
 import datetime
 from gspread_dataframe import set_with_dataframe
 from dateutil.relativedelta import relativedelta
+import io
+from datetime import date
+from decimal import Decimal, InvalidOperation
+import streamlit as st
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+
+COMPANY = 'LAKE VIEW DEVELOPMENT LLC'
+ADDRESS = ['3250 Wilshire Blvd, STE 1502', 'Los Angeles, CA 90010']
+BANK = 'COMMERCIAL BANK OF CALIFORNIA'
+
+ONES = ('','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen')
+TENS = ('','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety')
+def under_thousand(n):
+    parts=[]
+    if n>=100:
+        parts.append(ONES[n//100]+' Hundred'); n%=100
+    if n>=20:
+        parts.append(TENS[n//10]); n%=10
+    if n: parts.append(ONES[n])
+    return ' '.join(parts)
+def money_words(amount):
+    value=Decimal(str(amount)).quantize(Decimal('0.01'))
+    whole=int(value); cents=int((value-whole)*100)
+    if whole>999999999: raise ValueError('Amount too large')
+    if whole==0: words='Zero'
+    else:
+        chunks=[]
+        for divisor,name in ((1000000,'Million'),(1000,'Thousand'),(1,'')):
+            chunk=whole//divisor; whole%=divisor
+            if chunk: chunks.append(under_thousand(chunk)+(' '+name if name else ''))
+        words=' '.join(chunks)
+    return f'{words} and {cents:02d}/100 Dollars'
+
+def make_pdf(check_no, issued, payee, amount, memo):
+    buf=io.BytesIO()
+    c=canvas.Canvas(buf,pagesize=letter)
+    c.setTitle('Lakeview Check Print Layout')
+    # Fixed positions in points on US Letter, from bottom left.
+    c.setFont('Helvetica-Bold',11); c.drawString(90,744,COMPANY)
+    c.setFont('Helvetica',8)
+    for i,line in enumerate(ADDRESS): c.drawString(111,727-i*12,line)
+    c.setFont('Helvetica-Bold',9); c.drawString(390,744,BANK)
+    c.setFont('Helvetica',11); c.drawRightString(745,744,str(check_no))
+    c.drawRightString(710,700,issued.strftime('%m/%d/%Y'))
+    c.setFont('Helvetica',7); c.drawString(16,669,'PAY TO THE'); c.drawString(16,660,'ORDER OF')
+    c.setFont('Helvetica',11); c.drawString(90,663,payee[:72])
+    c.line(90,658,570,658)
+    c.setFont('Helvetica-Bold',11); c.drawRightString(744,663,f'$ {amount:,.2f}')
+    words=money_words(amount)
+    c.setFont('Helvetica',9)
+    if c.stringWidth(words,'Helvetica',9)>650:
+        raise ValueError('Amount in words is too long for one line; adjust the template')
+    c.drawString(16,631,words)
+    c.line(16,625,742,625)
+    c.setFont('Helvetica',8); c.drawString(16,584,'MEMO')
+    c.setFont('Helvetica',9); c.drawString(55,584,memo[:70]); c.line(55,580,345,580)
+    c.line(439,579,751,579)
+    c.setFont('Helvetica',7); c.drawCentredString(600,567,'AUTHORIZED SIGNATURE')
+    c.setFont('Helvetica',7); c.drawRightString(750,610,'VOID 90 DAYS AFTER ISSUE')
+    # MICR intentionally omitted: use bank-approved preprinted check stock.
+    c.setFont('Helvetica-Oblique',7); c.drawString(16,524,'PRINT ON BANK-APPROVED PREPRINTED CHECK STOCK; MICR NOT INCLUDED')
+    c.line(16,490,750,490)
+    c.setFont('Helvetica-Bold',10); c.drawString(16,464,'PAYMENT RECORD')
+    for y,label,val in [(443,'CHECK NUMBER',str(check_no)),(425,'DATE',issued.strftime('%m/%d/%Y')),(407,'PAYEE',payee),(389,'AMOUNT',f'${amount:,.2f}'),(371,'MEMO',memo)]:
+        c.setFont('Helvetica-Bold',9); c.drawString(16,y,label+':')
+        c.setFont('Helvetica',9); c.drawString(125,y,str(val)[:100])
+    c.save(); buf.seek(0)
+    return buf.getvalue()
+
+st.set_page_config(page_title='Lakeview Check Generator',layout='centered')
+st.title('Lakeview Check Generator')
+st.caption('Printable PDF layout based on your sample. Bank MICR information is not generated.')
+with st.form('check'):
+    a,b=st.columns(2)
+    with a:
+        check_no=st.text_input('Check number',value='2001')
+        issued=st.date_input('Date',value=date.today())
+    with b:
+        amount_text=st.text_input('Amount (USD)',value='2500.00')
+    payee=st.text_input('Payee',value='')
+    memo=st.text_input('Memo',value='')
+    submitted=st.form_submit_button('Generate printable PDF')
+if submitted:
+    try:
+        amount=Decimal(amount_text.replace(',','').replace('$','')).quantize(Decimal('0.01'))
+        if amount<=0: raise ValueError('Amount must be greater than zero')
+        if not payee.strip(): raise ValueError('Payee is required')
+        if not check_no.strip(): raise ValueError('Check number is required')
+        pdf=make_pdf(check_no.strip(),issued,payee.strip(),amount,memo.strip())
+        st.success('PDF generated')
+        st.write('Amount in words:',money_words(amount))
+        st.download_button('Download / Print PDF',pdf,file_name=f'Lakeview_Check_{check_no}.pdf',mime='application/pdf')
+        st.info('Print at 100% / Actual size on US Letter. Check stock alignment and bank requirements before use.')
+    except (ValueError,InvalidOperation) as e:
+        st.error(str(e))
 
 st.set_page_config(page_title="Property Strategy", layout="wide")
 tab_overview, tab_apartments = st.tabs(["📊 Property Overview", "🏢 Apartments"])
